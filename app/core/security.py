@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from pydantic import ValidationError
 
 from app.core.config import settings
@@ -22,7 +23,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 authentication scheme
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
+    tokenUrl=f"{settings.API_V1_STR}/token"  # Changed from auth/login to match your endpoint
 )
 
 
@@ -76,6 +77,40 @@ def create_access_token(
     to_encode = {"exp": expire, "sub": str(subject), "iat": datetime.utcnow()}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+
+async def authenticate_user(email: str, password: str, db: AsyncSession) -> Optional[User]:
+    """
+    Authenticate a user with email and password.
+    
+    Args:
+        email: The user's email
+        password: The user's password
+        db: Database session
+        
+    Returns:
+        User object if authentication is successful, None otherwise
+    """
+    try:
+        # Find user by email
+        result = await db.execute(select(User).filter(User.email == email))
+        user = result.scalars().first()
+        
+        # Check if user exists and password is correct
+        if not user or not verify_password(password, user.hashed_password):
+            logger.warning(f"Failed login attempt for user: {email}")
+            return None
+        
+        # Check if user is active
+        if not user.is_active:
+            logger.warning(f"Login attempt for inactive user: {email}")
+            return None
+        
+        logger.info(f"User {email} authenticated successfully")
+        return user
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        return None
 
 
 async def get_current_user(

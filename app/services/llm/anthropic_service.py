@@ -1,40 +1,296 @@
+import logging
 import time
-import uuid
-import json
 from typing import Dict, List, Optional, Any, AsyncIterator, Union
-import httpx
-import re
-from fastapi import HTTPException
+import traceback
+
+from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_exception
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.llm.base import LLMService
-from app.schemas.chat import ChatMessage, ChatCompletionResponse, ChatCompletionResponseChoice, ChatCompletionResponseMessage, ChatCompletionResponseUsage, FunctionCall
-from app.schemas.completion import CompletionResponse, CompletionResponseChoice, CompletionResponseUsage
-from app.models.chat import MessageRole
+from app.schemas.chat import ChatMessage, ChatCompletionResponse, ChatCompletionResponseChoice, ChatCompletionResponseMessage
+from app.schemas.completion import CompletionResponse, CompletionResponseChoice
 
 logger = get_logger(__name__)
 
-
 class AnthropicService(LLMService):
     """
-    Service for interacting with Anthropic Claude API.
+    Service for interacting with Anthropic's Claude API.
+    Implements streaming and non-streaming completions using Anthropic's API.
     """
     
-    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
+    def __init__(self):
+        """Initialize the Anthropic service with API credentials."""
+        self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self.api_base = settings.ANTHROPIC_API_BASE
+        logger.info("Anthropic service initialized")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(lambda e: isinstance(e, (ConnectionError, TimeoutError)) or 
+                                  (hasattr(e, 'status_code') and e.status_code >= 500)),
+        reraise=True
+    )
+    async def generate_chat_completion(
+        self, 
+        messages: List[ChatMessage], 
+        model: str,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7,
+        top_p: float = 1.0,
+        n: int = 1,
+        stop: Optional[Union[str, List[str]]] = None,
+        presence_penalty: float = 0,
+        frequency_penalty: float = 0,
+        functions: Optional[List[Dict[str, Any]]] = None,
+        function_call: Optional[Union[str, Dict[str, str]]] = None,
+        user: Optional[str] = None,
+        **kwargs
+    ) -> ChatCompletionResponse:
         """
-        Initialize the Anthropic service.
+        Generate a chat completion using Anthropic's Claude API.
         
         Args:
-            api_key: Anthropic API key. If not provided, uses settings.ANTHROPIC_API_KEY
-            api_base: Anthropic API base URL. If not provided, uses settings.ANTHROPIC_API_BASE
+            messages: List of chat messages in the conversation
+            model: Model identifier (e.g., "claude-3-7-sonnet-20250219")
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0-1)
+            top_p: Nucleus sampling parameter
+            n: Number of completions to generate
+            stop: Sequence(s) at which to stop generation
+            presence_penalty: Presence penalty (-2 to 2) - Not used by Anthropic
+            frequency_penalty: Frequency penalty (-2 to 2) - Not used by Anthropic
+            functions: List of function definitions (Claude calls these "tools")
+            function_call: Controls function calling behavior (Claude calls this "tool_choice")
+            user: End-user identifier
+            **kwargs: Additional parameters to pass to the API
+            
+        Returns:
+            ChatCompletionResponse object with generated response(s)
         """
-        self.api_key = api_key or settings.ANTHROPIC_API_KEY
-        self.api_base = api_base or settings.ANTHROPIC_API_BASE
+        try:
+            # Use user parameter as user_id for tracking
+            user_id = user or "anonymous_user"
+            
+            # Convert messages to dict format for internal processing
+            converted_messages = [{"role": msg.role, "content": msg.content} for msg in messages]
+            
+            # Extract system prompt (if any)
+            system_prompt = self._get_system_prompt(converted_messages)
+            
+            # Format regular messages for Anthropic API
+            formatted_messages = self._format_messages(converted_messages)
+            
+            # Log request details (without sensitive content)
+            logger.debug(
+                f"Anthropic request: model={model}, user={user_id}, "
+                f"max_tokens={max_tokens or 1000}, temp={temperature}, "
+                f"message_count={len(messages)}, has_system={system_prompt is not None}"
+            )
+            
+            # Prepare parameters dictionary with only non-None values
+            api_params = {
+                "model": model,
+                "messages": formatted_messages,
+                "max_tokens": max_tokens or 1000,
+                "temperature": temperature,
+                "metadata": {"user_id": user_id}
+            }
+            
+            # Add optional parameters only if they exist and have appropriate values
+            if top_p is not None and top_p != 1.0:
+                api_params["top_p"] = top_p
+                
+            if stop:
+                api_params["stop_sequences"] = stop if isinstance(stop, list) else [stop]
+                
+            if system_prompt:
+                api_params["system"] = system_prompt
+            
+            # Handle tools (Claude's version of functions) and tool_choice
+            is_supported_model = any(name in model.lower() for name in ["claude-3", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku"])
+            
+            if functions and len(functions) > 0 and is_supported_model:
+                api_params["tools"] = functions
+                
+                # Only add tool_choice if we have tools and a specific function is requested
+                if function_call and function_call != "auto" and isinstance(function_call, dict) and "name" in function_call:
+                    api_params["tool_choice"] = {"type": "tool", "name": function_call["name"]}
+            
+            # Add remaining kwargs
+            api_params.update(kwargs)
+            
+            # Make API call
+            start_time = time.time()
+            response = await self.client.messages.create(**api_params)
+            duration = time.time() - start_time
+            
+            # Log successful response
+            logger.info(
+                f"Successful completion: model={model}, tokens={response.usage.output_tokens}, "
+                f"duration={duration:.2f}s, user={user_id}"
+            )
+            
+            # Create a timestamp from current time
+            current_timestamp = int(time.time())
+            
+            # Check for tool use in the response
+            function_call_data = None
+            response_content = ""
+            
+            if hasattr(response, "content") and response.content:
+                for block in response.content:
+                    if block.type == "text":
+                        response_content = block.text
+                    elif block.type == "tool_use":
+                        function_call_data = {
+                            "name": block.id,
+                            "arguments": block.input if hasattr(block, "input") else "{}"
+                        }
+            
+            # Create a message object for the response
+            message = ChatCompletionResponseMessage(
+                role="assistant",
+                content=response_content,
+                function_call=function_call_data
+            )
+            
+            # Create a choice object
+            choice = ChatCompletionResponseChoice(
+                index=0,
+                message=message,
+                finish_reason="stop" if not function_call_data else "function_call"
+            )
+            
+            # Create standardized response
+            result = ChatCompletionResponse(
+                id=response.id,
+                object="chat.completion",
+                created=current_timestamp,
+                model=model,
+                choices=[choice],
+                usage={
+                    "prompt_tokens": response.usage.input_tokens,
+                    "completion_tokens": response.usage.output_tokens,
+                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Log detailed error with traceback
+            logger.error(
+                f"Anthropic API error: {type(e).__name__}: {str(e)}\n"
+                f"Model: {model}, User: {user}"
+            )
+            logger.debug(f"Error traceback: {traceback.format_exc()}")
+            
+            # Re-raise the exception so it can be handled by the caller
+            raise
+    
+    @retry(
+        stop=stop_after_attempt(2),  # Fewer retries for streaming to avoid long waits
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        retry=retry_if_exception(lambda e: isinstance(e, ConnectionError) or 
+                                 (hasattr(e, 'status_code') and e.status_code >= 500)),
+        reraise=True
+    )
+    async def stream_chat_completion(
+        self, 
+        messages: List[ChatMessage], 
+        model: str,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7,
+        top_p: float = 1.0,
+        stop: Optional[Union[str, List[str]]] = None,
+        presence_penalty: float = 0,
+        frequency_penalty: float = 0,
+        functions: Optional[List[Dict[str, Any]]] = None,
+        function_call: Optional[Union[str, Dict[str, str]]] = None,
+        user: Optional[str] = None,
+        **kwargs
+    ) -> AsyncIterator[str]:
+        """
+        Stream a chat completion from Anthropic's Claude API.
         
-        if not self.api_key:
-            logger.error("Anthropic API key not provided")
-            raise ValueError("Anthropic API key is required")
+        Args similar to generate_chat_completion, but returns a streaming response.
+        
+        Yields:
+            Chunks of the generated response as they become available
+        """
+        try:
+            user_id = user or "anonymous_user"
+            converted_messages = [{"role": msg.role, "content": msg.content} for msg in messages]
+            system_prompt = self._get_system_prompt(converted_messages)
+            formatted_messages = self._format_messages(converted_messages)
+            
+            logger.debug(
+                f"Anthropic streaming request: model={model}, user={user_id}, "
+                f"max_tokens={max_tokens or 1000}, temp={temperature}"
+            )
+            
+            # Prepare API parameters with only valid values
+            api_params = {
+                "model": model,
+                "messages": formatted_messages,
+                "max_tokens": max_tokens or 1000,
+                "temperature": temperature,
+                "metadata": {"user_id": user_id},
+                "stream": True  # Always true for streaming
+            }
+            
+            # Add optional parameters
+            if top_p is not None and top_p != 1.0:
+                api_params["top_p"] = top_p
+                
+            if stop:
+                api_params["stop_sequences"] = stop if isinstance(stop, list) else [stop]
+                
+            if system_prompt:
+                api_params["system"] = system_prompt
+            
+            # Handle tools and tool_choice
+            is_supported_model = any(name in model.lower() for name in ["claude-3", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku"])
+            
+            if functions and len(functions) > 0 and is_supported_model:
+                api_params["tools"] = functions
+                
+                if function_call and function_call != "auto" and isinstance(function_call, dict) and "name" in function_call:
+                    api_params["tool_choice"] = {"type": "tool", "name": function_call["name"]}
+            
+            # Add remaining kwargs
+            api_params.update(kwargs)
+            
+            # Make streaming API call
+            stream = await self.client.messages.create(**api_params)
+            
+            # Track streaming metrics
+            chunk_count = 0
+            start_time = time.time()
+            
+            # Process and yield the streaming response
+            async for chunk in stream:
+                if chunk.type == "content_block_delta" and chunk.delta.text:
+                    chunk_count += 1
+                    yield chunk.delta.text
+            
+            duration = time.time() - start_time
+            logger.info(
+                f"Completed streaming: model={model}, chunks={chunk_count}, "
+                f"duration={duration:.2f}s, user={user_id}"
+            )
+            
+        except Exception as e:
+            logger.error(
+                f"Anthropic streaming error: {type(e).__name__}: {str(e)}\n"
+                f"Model: {model}, User: {user}"
+            )
+            logger.debug(f"Streaming error traceback: {traceback.format_exc()}")
+            raise
     
     async def generate_completion(
         self,
@@ -51,219 +307,106 @@ class AnthropicService(LLMService):
         **kwargs
     ) -> CompletionResponse:
         """
-        Generate a completion using Anthropic API.
-        Note: Anthropic doesn't support traditional completions, only chat completions.
-        This method adapts the completion interface to Anthropic's chat API.
-        """
-        # Convert to chat completion format
-        chat_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        chat_response = await self.generate_chat_completion(
-            messages=[chat_message],
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            n=n,
-            stop=stop,
-            # Anthropic doesn't directly support these, but we'll include them for
-            # parameter compatibility
-            presence_penalty=presence_penalty,
-            frequency_penalty=frequency_penalty,
-            user=user,
-            **kwargs
-        )
+        Generate a text completion using Anthropic's Claude API.
+        This is a wrapper around generate_chat_completion that accepts a single prompt.
         
-        # Convert chat completion to completion format
-        choices = []
-        for i, choice in enumerate(chat_response.choices):
-            choices.append(
-                CompletionResponseChoice(
-                    text=choice.message.content or "",
-                    index=i,
-                    logprobs=None,
-                    finish_reason=choice.finish_reason
-                )
-            )
-        
-        return CompletionResponse(
-            id=chat_response.id,
-            object="text_completion",
-            created=chat_response.created,
-            model=chat_response.model,
-            choices=choices,
-            usage=chat_response.usage,
-            source_documents=chat_response.source_documents
-        )
-    
-    async def generate_chat_completion(
-        self,
-        messages: List[ChatMessage],
-        model: str,
-        max_tokens: Optional[int] = None,
-        temperature: float = 0.7,
-        top_p: float = 1.0,
-        n: int = 1,
-        stop: Optional[Union[str, List[str]]] = None,
-        presence_penalty: float = 0,
-        frequency_penalty: float = 0,
-        functions: Optional[List[Dict[str, Any]]] = None,
-        function_call: Optional[Union[str, Dict[str, str]]] = None,
-        user: Optional[str] = None,
-        **kwargs
-    ) -> ChatCompletionResponse:
-        """
-        Generate a chat completion using Anthropic API.
-        """
-        url = f"{self.api_base}/v1/messages"
-        
-        # Convert messages to Anthropic format
-        # Anthropic expects a specific format and doesn't support all the roles that OpenAI does
-        system_message = None
-        anthropic_messages = []
-        
-        for msg in messages:
-            if msg.role == MessageRole.SYSTEM:
-                system_message = msg.content
-            elif msg.role == MessageRole.USER:
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": msg.content
-                })
-            elif msg.role == MessageRole.ASSISTANT:
-                anthropic_messages.append({
-                    "role": "assistant",
-                    "content": msg.content
-                })
-            elif msg.role == MessageRole.FUNCTION:
-                # Anthropic doesn't directly support function messages
-                # Convert to user messages with a specific format
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": f"Function {msg.function_name} returned: {msg.content}"
-                })
-        
-        # Ensure we have at least one user message
-        if not any(msg["role"] == "user" for msg in anthropic_messages):
-            raise HTTPException(
-                status_code=400,
-                detail="At least one user message is required for Anthropic API"
-            )
-        
-        # Prepare request payload
-        payload = {
-            "model": model,
-            "messages": anthropic_messages,
-            "temperature": temperature,
-            "top_p": top_p,
-            "max_tokens": max_tokens or 1024,
-        }
-        
-        if system_message:
-            payload["system"] = system_message
+        Args:
+            prompt: The text prompt to complete
+            model: The model to use
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0-2)
+            top_p: Nucleus sampling parameter
+            n: Number of completions to generate
+            stop: Sequence(s) at which to stop generation
+            presence_penalty: Presence penalty (-2 to 2)
+            frequency_penalty: Frequency penalty (-2 to 2)
+            user: End-user identifier
+            kwargs: Additional provider-specific parameters
             
-        if stop is not None:
-            payload["stop_sequences"] = stop if isinstance(stop, list) else [stop]
-        
-        # Handle tool use with Claude's native tools feature if available
-        if functions is not None and len(functions) > 0:
-            # Check if this is a Claude model that supports tools
-            # Currently Claude 3 Opus, Sonnet and Haiku support tools
-            if any(model_name in model for model_name in ["claude-3", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]):
-                payload["tools"] = functions
-                
-                if function_call is not None and function_call != "auto":
-                    if isinstance(function_call, dict) and "name" in function_call:
-                        payload["tool_choice"] = {"type": "tool", "name": function_call["name"]}
-            else:
-                logger.warning(f"Function calling not supported for model {model}, ignoring functions parameter")
-        
-        # Add any additional parameters
-        for key, value in kwargs.items():
-            if key not in payload:
-                payload[key] = value
-        
-        # Call Anthropic API
+        Returns:
+            CompletionResponse object with generated completion(s)
+        """
         try:
-            async with httpx.AsyncClient(timeout=settings.REQUEST_TIMEOUT_SECONDS) as client:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    headers={
-                        "x-api-key": self.api_key,
-                        "anthropic-version": "2023-06-01",
-                        "Content-Type": "application/json"
-                    }
+            # Create a chat message from the prompt
+            chat_message = ChatMessage(role="user", content=prompt)
+            
+            # Call the chat completion method
+            chat_response = await self.generate_chat_completion(
+                messages=[chat_message],
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                n=n,
+                stop=stop,
+                presence_penalty=presence_penalty,
+                frequency_penalty=frequency_penalty,
+                user=user,
+                **kwargs
+            )
+            
+            # Extract the content safely
+            content = ""
+            finish_reason = "stop"
+            
+            if chat_response.choices and len(chat_response.choices) > 0:
+                choice = chat_response.choices[0]
+                # Access content and finish_reason properly
+                if hasattr(choice, "message") and hasattr(choice.message, "content"):
+                    content = choice.message.content or ""
+                    finish_reason = choice.finish_reason or "stop"
+                elif isinstance(choice, dict):
+                    # If it's a dictionary
+                    message = choice.get("message", {})
+                    if isinstance(message, dict):
+                        content = message.get("content", "")
+                    else:
+                        content = getattr(message, "content", "")
+                    finish_reason = choice.get("finish_reason", "stop")
+            
+            # Extract usage data
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+            
+            if hasattr(chat_response, "usage"):
+                usage = chat_response.usage
+                if isinstance(usage, dict):
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    total_tokens = usage.get("total_tokens", 0)
+                else:
+                    prompt_tokens = getattr(usage, "prompt_tokens", 0)
+                    completion_tokens = getattr(usage, "completion_tokens", 0)
+                    total_tokens = getattr(usage, "total_tokens", 0)
+            
+            # Create response choices
+            choices = [
+                CompletionResponseChoice(
+                    text=content,
+                    index=0,
+                    logprobs=None,
+                    finish_reason=finish_reason
                 )
-                
-                if response.status_code != 200:
-                    logger.error(f"Anthropic API error: {response.status_code} - {response.text}")
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail=f"Anthropic API error: {response.text}"
-                    )
-                
-                result = response.json()
-                
-                # Extract tool calls if present
-                content = result["content"][0]["text"]
-                function_call_obj = None
-                
-                # Check for tool use in response
-                if "tool_use" in result:
-                    tool_use = result["tool_use"]
-                    function_call_obj = FunctionCall(
-                        name=tool_use["name"],
-                        arguments=json.dumps(tool_use["input"])
-                    )
-                    # Remove tool use marker from content if present
-                    content = re.sub(r'<tool_use>.*?</tool_use>', '', content, flags=re.DOTALL).strip()
-                
-                # Map Anthropic response to our schema
-                message = ChatCompletionResponseMessage(
-                    role=MessageRole.ASSISTANT,
-                    content=content,
-                    function_call=function_call_obj
-                )
-                
-                # Anthropic doesn't provide detailed token usage, so we estimate
-                prompt_tokens = await self.count_tokens("".join([m.content for m in messages]), model)
-                completion_tokens = await self.count_tokens(content, model)
-                
-                choices = [
-                    ChatCompletionResponseChoice(
-                        index=0,
-                        message=message,
-                        finish_reason=result.get("stop_reason", "stop")
-                    )
-                ]
-                
-                usage = ChatCompletionResponseUsage(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=prompt_tokens + completion_tokens
-                )
-                
-                return ChatCompletionResponse(
-                    id=result["id"],
-                    object="chat.completion",
-                    created=int(time.time()),
-                    model=result["model"],
-                    choices=choices,
-                    usage=usage
-                )
-                
-        except httpx.TimeoutException:
-            logger.error(f"Anthropic API timeout for model {model}")
-            raise HTTPException(
-                status_code=504,
-                detail="Request to Anthropic API timed out"
+            ]
+            
+            # Convert chat completion to completion format with proper usage dictionary
+            return CompletionResponse(
+                id=chat_response.id,
+                object="text_completion",
+                created=chat_response.created,
+                model=chat_response.model,
+                choices=choices,
+                usage={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                }
             )
         except Exception as e:
-            logger.error(f"Error calling Anthropic API: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error calling Anthropic API: {str(e)}"
-            )
+            logger.error(f"Error in generate_completion: {str(e)}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            raise
     
     async def stream_completion(
         self,
@@ -279,193 +422,95 @@ class AnthropicService(LLMService):
         **kwargs
     ) -> AsyncIterator[str]:
         """
-        Stream a completion from Anthropic API.
-        Adapts the completion interface to Anthropic's chat API.
-        """
-        # Convert to chat message format
-        chat_message = ChatMessage(role=MessageRole.USER, content=prompt)
+        Stream a text completion from Anthropic's Claude API.
+        This is a wrapper around stream_chat_completion that accepts a single prompt.
         
-        # Use the chat streaming method
-        async for chunk in self.stream_chat_completion(
-            messages=[chat_message],
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            stop=stop,
-            presence_penalty=presence_penalty,
-            frequency_penalty=frequency_penalty,
-            user=user,
-            **kwargs
-        ):
-            yield chunk
+        Args:
+            prompt: The text prompt to complete
+            model: The model to use
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0-2)
+            top_p: Nucleus sampling parameter
+            stop: Sequence(s) at which to stop generation
+            presence_penalty: Presence penalty (-2 to 2)
+            frequency_penalty: Frequency penalty (-2 to 2)
+            user: End-user identifier
+            kwargs: Additional provider-specific parameters
+            
+        Returns:
+            Async iterator yielding completion text chunks
+        """
+        try:
+            # Create a chat message from the prompt
+            chat_message = ChatMessage(role="user", content=prompt)
+            
+            # Use the streaming chat completion method
+            async for chunk in self.stream_chat_completion(
+                messages=[chat_message],
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                stop=stop,
+                presence_penalty=presence_penalty,
+                frequency_penalty=frequency_penalty,
+                user=user,
+                **kwargs
+            ):
+                yield chunk
+        except Exception as e:
+            logger.error(f"Error in stream_completion: {str(e)}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            raise
     
-    async def stream_chat_completion(
-        self,
-        messages: List[ChatMessage],
-        model: str,
-        max_tokens: Optional[int] = None,
-        temperature: float = 0.7,
-        top_p: float = 1.0,
-        stop: Optional[Union[str, List[str]]] = None,
-        presence_penalty: float = 0,
-        frequency_penalty: float = 0,
-        functions: Optional[List[Dict[str, Any]]] = None,
-        function_call: Optional[Union[str, Dict[str, str]]] = None,
-        user: Optional[str] = None,
-        **kwargs
-    ) -> AsyncIterator[str]:
+    def _format_messages(self, messages: List[Dict[str, str]]) -> List[MessageParam]:
         """
-        Stream a chat completion from Anthropic API.
-        """
-        url = f"{self.api_base}/v1/messages"
+        Format messages for the Anthropic API.
         
-        # Convert messages to Anthropic format
-        system_message = None
-        anthropic_messages = []
+        Args:
+            messages: List of message objects with role and content
+            
+        Returns:
+            Properly formatted messages for Anthropic API
+        """
+        formatted_messages = []
         
         for msg in messages:
-            if msg.role == MessageRole.SYSTEM:
-                system_message = msg.content
-            elif msg.role == MessageRole.USER:
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": msg.content
-                })
-            elif msg.role == MessageRole.ASSISTANT:
-                anthropic_messages.append({
-                    "role": "assistant",
-                    "content": msg.content
-                })
-            elif msg.role == MessageRole.FUNCTION:
-                # Convert function messages to user messages
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": f"Function {msg.function_name} returned: {msg.content}"
-                })
-        
-        # Ensure we have at least one user message
-        if not any(msg["role"] == "user" for msg in anthropic_messages):
-            raise HTTPException(
-                status_code=400,
-                detail="At least one user message is required for Anthropic API"
-            )
-        
-        # Prepare request payload
-        payload = {
-            "model": model,
-            "messages": anthropic_messages,
-            "temperature": temperature,
-            "top_p": top_p,
-            "max_tokens": max_tokens or 1024,
-            "stream": True,
-        }
-        
-        if system_message:
-            payload["system"] = system_message
+            role = msg["role"].lower()
+            # Skip system messages as they're handled separately
+            if role == "system":
+                continue
+                
+            # Map roles to their Anthropic equivalents
+            api_role = {
+                "user": "user",
+                "assistant": "assistant",
+                "function": "user"  # Map function messages to user messages with special formatting
+            }.get(role, role)
             
-        if stop is not None:
-            payload["stop_sequences"] = stop if isinstance(stop, list) else [stop]
-        
-        # Handle tool use with Claude's native tools feature
-        if functions is not None and len(functions) > 0:
-            # Check if this is a Claude model that supports tools
-            if any(model_name in model for model_name in ["claude-3", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]):
-                payload["tools"] = functions
-                
-                if function_call is not None and function_call != "auto":
-                    if isinstance(function_call, dict) and "name" in function_call:
-                        payload["tool_choice"] = {"type": "tool", "name": function_call["name"]}
-        
-        # Add any additional parameters
-        for key, value in kwargs.items():
-            if key not in payload:
-                payload[key] = value
-        
-        # Call Anthropic API with streaming
-        try:
-            async with httpx.AsyncClient(timeout=None) as client:
-                async with client.stream(
-                    "POST",
-                    url,
-                    json=payload,
-                    headers={
-                        "x-api-key": self.api_key,
-                        "anthropic-version": "2023-06-01",
-                        "Content-Type": "application/json"
-                    }
-                ) as response:
-                    if response.status_code != 200:
-                        error_text = await response.text()
-                        logger.error(f"Anthropic API error: {response.status_code} - {error_text}")
-                        raise HTTPException(
-                            status_code=response.status_code,
-                            detail=f"Anthropic API error: {error_text}"
-                        )
-                    
-                    buffer = ""
-                    tool_use_buffer = None
-                    
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            line = line[6:]  # Remove "data: " prefix
-                            
-                            if line.strip() == "[DONE]":
-                                break
-                                
-                            try:
-                                if line.strip():
-                                    chunk = json.loads(line)
-                                    
-                                    # Handle tool use events
-                                    if chunk.get("type") == "tool_use":
-                                        tool_use_buffer = chunk
-                                        continue
-                                        
-                                    # For content deltas, yield the text
-                                    if chunk.get("type") == "content_block_delta" and "delta" in chunk:
-                                        content = chunk["delta"].get("text", "")
-                                        if content:
-                                            # Check for and filter out tool use XML tags
-                                            if "<tool_use>" in content or "</tool_use>" in content:
-                                                # Add to buffer to check for complete tags
-                                                buffer += content
-                                                # Extract only non-tool parts for yielding
-                                                parts = re.sub(r'<tool_use>.*?</tool_use>', '', buffer, flags=re.DOTALL).strip()
-                                                # Only yield if we have non-tool content
-                                                if parts and parts != buffer:
-                                                    yield parts
-                                                    buffer = ""
-                                            else:
-                                                yield content
-                            except json.JSONDecodeError as e:
-                                logger.warning(f"Error parsing stream chunk: {e}")
-                                continue
-                                
-                    # If we have a tool use at the end, provide a simple text representation
-                    if tool_use_buffer and "id" in tool_use_buffer:
-                        tool_name = tool_use_buffer.get("name", "unknown")
-                        tool_input = json.dumps(tool_use_buffer.get("input", {}))
-                        yield f"\nFunction call: {tool_name}({tool_input})"
-                
-        except httpx.TimeoutException:
-            logger.error(f"Anthropic API timeout for streaming model {model}")
-            raise HTTPException(
-                status_code=504,
-                detail="Streaming request to Anthropic API timed out"
-            )
-        except Exception as e:
-            logger.error(f"Error streaming from Anthropic API: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error streaming from Anthropic API: {str(e)}"
-            )
+            # For function messages, add a prefix to the content
+            content = msg["content"]
+            if role == "function" and "function_name" in msg:
+                content = f"Function {msg['function_name']} returned: {content}"
+            
+            formatted_messages.append({
+                "role": api_role,
+                "content": content
+            })
+            
+        return formatted_messages
     
-    async def count_tokens(self, text: str, model: str) -> int:
+    def _get_system_prompt(self, messages: List[Dict[str, str]]) -> Optional[str]:
         """
-        Count the number of tokens in a text string.
-        For Anthropic, we use a simple approximation since they don't provide a tokenizer.
+        Extract system prompt from messages if present.
+        
+        Args:
+            messages: List of message objects
+            
+        Returns:
+            System prompt string or None
         """
-        # Simple approximation for Claude models
-        # Claude docs suggest ~4 characters per token as a rough estimate
-        return len(text) // 4 + 1
+        for msg in messages:
+            if msg["role"].lower() == "system":
+                return msg["content"]
+        return None

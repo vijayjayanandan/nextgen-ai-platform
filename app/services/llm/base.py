@@ -3,13 +3,29 @@ from typing import Dict, List, Optional, Any, AsyncIterator, Union
 
 from app.schemas.chat import ChatMessage, ChatCompletionResponse
 from app.schemas.completion import CompletionResponse
-
+from app.services.tokenizer_service import get_tokenizer_service
 
 class LLMService(ABC):
     """
     Base abstract class for LLM services.
     All LLM providers should implement this interface.
     """
+    async def count_tokens(self, text: str, model: str) -> int:
+        """
+        Count the number of tokens in a text string.
+        
+        This implementation delegates to the TokenizerService. LLM services can
+        override this method if they need custom token counting logic.
+        
+        Args:
+            text: The text to tokenize
+            model: The model to use for tokenization
+            
+        Returns:
+            Number of tokens
+        """
+        tokenizer_service = get_tokenizer_service()
+        return await tokenizer_service.count_tokens(text, model)
     
     @abstractmethod
     async def generate_completion(
@@ -156,19 +172,5 @@ class LLMService(ABC):
             
         Returns:
             Async iterator yielding chat response text chunks
-        """
-        pass
-    
-    @abstractmethod
-    async def count_tokens(self, text: str, model: str) -> int:
-        """
-        Count the number of tokens in a text string.
-        
-        Args:
-            text: The text to tokenize
-            model: The model to use for tokenization
-            
-        Returns:
-            Number of tokens
         """
         pass
