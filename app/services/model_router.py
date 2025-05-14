@@ -1,3 +1,7 @@
+"""
+Complete updated model_router.py with fixes for all three API issues
+"""
+
 from typing import Dict, List, Optional, Any, Union, Tuple, AsyncIterator
 from fastapi import HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -326,7 +330,7 @@ class ModelRouter:
                 "max_tokens": max_tokens,
                 "message_count": len(messages),
             }
-        )
+        )                
         
         # Call the LLM service
         return await llm_service.generate_chat_completion(
@@ -419,8 +423,8 @@ class ModelRouter:
             }
         )
         
-        # Call the LLM service
-        return llm_service.stream_completion(
+        # Return the stream directly from the LLM service
+        return await llm_service.stream_completion(
             prompt=prompt,
             model=model,
             max_tokens=max_tokens,
@@ -519,8 +523,9 @@ class ModelRouter:
             }
         )
         
-        # Call the LLM service
-        return llm_service.stream_chat_completion(
+        
+        # Return the stream directly from the LLM service
+        return await llm_service.stream_chat_completion(
             messages=messages,
             model=model,
             max_tokens=max_tokens,
@@ -534,8 +539,7 @@ class ModelRouter:
             user=user,
             **kwargs
         )
-
-
+    
 async def get_model_router(db: AsyncSession = Depends(get_db)) -> ModelRouter:
     """
     Dependency that provides a ModelRouter instance.

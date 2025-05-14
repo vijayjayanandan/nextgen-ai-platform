@@ -155,8 +155,8 @@ async def stream_chat_completion(
                     }
                     augmented_messages.insert(0, system_message)
             
-            # Stream the chat completion
-            stream = orchestrator.model_router.route_stream_chat_completion_request(
+            # Stream the chat completion - await the coroutine to get the async iterator
+            stream = await orchestrator.model_router.route_stream_chat_completion_request(
                 messages=augmented_messages,
                 model=request.model,
                 user_id=str(current_user.id),
@@ -226,8 +226,16 @@ async def stream_chat_completion(
                 }
             }
     
-    # Return SSE response
-    return EventSourceResponse(event_generator())
+    # Return SSE response - call the generator function to get an iterator
+    return EventSourceResponse(
+        event_generator(),  # Call the function to get an iterator
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Important for Nginx
+        }
+    )
 
 
 @router.post("/conversations", response_model=Dict[str, Any])

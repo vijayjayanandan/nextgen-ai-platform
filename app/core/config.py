@@ -92,6 +92,7 @@ class Settings(BaseSettings):
     ENABLE_RETRIEVAL_AUGMENTATION: bool = True
     ENABLE_CONTENT_FILTERING: bool = True
     ENABLE_EXPLANATION: bool = True
+    ENABLE_FUNCTION_CALLING: bool = False
 
     # Performance
     MAX_CONCURRENT_REQUESTS: int = 100
@@ -105,6 +106,7 @@ class Settings(BaseSettings):
     GCDOCS_API_ENDPOINT: Optional[str] = None
     GCMS_API_ENDPOINT: Optional[str] = None
     DYNAMICS_API_ENDPOINT: Optional[str] = None
+    
 
 
 # Instantiate settings

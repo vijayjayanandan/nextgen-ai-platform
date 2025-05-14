@@ -62,9 +62,10 @@ async def stream_completion(
             # If filtering blocked the content, return error
             if filter_details.get("filtered", False) and filtered_prompt != request.prompt:
                 yield {
+                    "event": "error",
                     "data": {
-                        "error": "Content policy violation",
-                        "message": "Your prompt contains content that violates our usage policies."
+                        "message": "Content policy violation",
+                        "details": "Your prompt contains content that violates our usage policies."
                     }
                 }
                 return
@@ -104,8 +105,20 @@ async def stream_completion(
                     f"Please answer the query based on the context information provided."
                 )
             
-            # Stream the completion
-            stream = orchestrator.model_router.route_stream_completion_request(
+            # Send initial metadata event
+            yield {
+                "event": "metadata",
+                "data": {
+                    "model": request.model,
+                    "created": int(uuid.uuid4().time_low),  # Simple timestamp approximation
+                    "retrieval_used": bool(source_chunks),
+                    "chunks_retrieved": len(source_chunks)
+                }
+            }
+            
+            # Get the streaming generator function from the model router
+            # IMPORTANT: We're getting the generator function, not calling it directly
+            stream_generator = await orchestrator.model_router.route_stream_completion_request(
                 prompt=augmented_prompt,
                 model=request.model,
                 user_id=str(current_user.id),
@@ -122,41 +135,43 @@ async def stream_completion(
                 }
             )
             
-            # Send initial metadata event
-            yield {
-                "event": "metadata",
-                "data": {
-                    "model": request.model,
-                    "created": int(uuid.uuid4().time_low),  # Simple timestamp approximation
-                    "retrieval_used": bool(source_chunks),
-                    "chunks_retrieved": len(source_chunks)
-                }
-            }
-            
-            # Stream completion chunks
-            async for chunk in stream:
-                # Check if chunk contains sensitive content
-                filtered_chunk, filter_details = await orchestrator.content_filter.filter_response(
-                    chunk,
-                    str(current_user.id),
-                    context={"model": request.model, "streaming": True}
-                )
-                
-                # If content is filtered, send a warning
-                if filter_details.get("filtered", False) and filtered_chunk != chunk:
-                    yield {
-                        "event": "warning",
-                        "data": {
-                            "message": "Content filtered due to policy violation",
-                            "type": "content_filter"
+            # Now properly iterate over the generator
+            async for chunk in stream_generator:
+                # Check if chunk is already formatted as an event
+                if isinstance(chunk, str) and chunk.startswith("event:"):
+                    # It's already in SSE format, pass it through
+                    yield chunk
+                elif isinstance(chunk, str):
+                    # Filter the chunk if needed
+                    filtered_chunk, filter_details = await orchestrator.content_filter.filter_response(
+                        chunk,
+                        str(current_user.id),
+                        context={"model": request.model, "streaming": True}
+                    )
+                    
+                    # If content is filtered, send a warning
+                    if filter_details.get("filtered", False) and filtered_chunk != chunk:
+                        yield {
+                            "event": "warning",
+                            "data": {
+                                "message": "Content filtered due to policy violation",
+                                "type": "content_filter"
+                            }
                         }
-                    }
-                    # Use the filtered chunk
-                    chunk = filtered_chunk
-                
-                # Only send non-empty chunks
-                if chunk:
-                    yield {"data": chunk}
+                        # Use the filtered chunk
+                        chunk = filtered_chunk
+                    
+                    # Only send non-empty chunks
+                    if chunk:
+                        yield {
+                            "event": "completion",
+                            "data": {
+                                "text": chunk,
+                                "index": 0,
+                                "logprobs": None,
+                                "finish_reason": None
+                            }
+                        }
             
             # Send done event
             yield {
@@ -165,6 +180,8 @@ async def stream_completion(
             }
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             # Send error event
             yield {
                 "event": "error",
@@ -173,5 +190,13 @@ async def stream_completion(
                 }
             }
     
-    # Return SSE response
-    return EventSourceResponse(event_generator())
+    # Return SSE response - call the generator function to get an iterator
+    return EventSourceResponse(
+        event_generator(),  # Call the function to get an iterator
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Important for Nginx
+        }
+    )
