@@ -1,6 +1,6 @@
-# IRCC AI Platform - Backend
+# AI Platform - Backend
 
-This repository contains the backend implementation for the IRCC AI Platform, a secure hybrid AI system that integrates cloud-based large language models (LLMs) with on-premises deployment for handling sensitive Protected B data.
+This repository contains the backend implementation for the AI Platform, a secure hybrid AI system that integrates cloud-based large language models (LLMs) with on-premises deployment for handling sensitive Protected B data.
 
 ## Architecture Overview
 
