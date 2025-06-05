@@ -12,6 +12,7 @@ from app.services.llm.adapters.base import ModelAdapter
 from app.services.llm.adapters.openai_compatible import OpenAICompatibleAdapter
 from app.services.llm.adapters.llama import LlamaAdapter
 from app.services.llm.adapters.deepseek import DeepseekAdapter
+from app.services.llm.adapters.ollama import OllamaAdapter
 from app.schemas.chat import ChatMessage, ChatCompletionResponse, ChatCompletionResponseChoice, ChatCompletionResponseMessage, ChatCompletionResponseUsage, FunctionCall
 from app.schemas.completion import CompletionResponse, CompletionResponseChoice, CompletionResponseUsage
 from app.models.chat import MessageRole
@@ -41,6 +42,9 @@ class OnPremLLMService(LLMService):
             self.model_config = settings.ON_PREM_MODELS[self.model_name]
             self.endpoint_url = endpoint_url or self.model_config.get("endpoint")
             self.model_type = self.model_config.get("model_type", "default")
+            # Auto-detect Ollama models
+            if self.model_config.get("base_model") == "ollama" or "ollama" in self.model_name:
+                self.model_type = "ollama"
         else:
             # Fallback to legacy configuration
             self.endpoint_url = endpoint_url or settings.ON_PREM_MODEL_ENDPOINT
@@ -54,6 +58,16 @@ class OnPremLLMService(LLMService):
         # Get the appropriate adapter for this model type
         self.adapter = self._get_adapter(self.model_type)
         
+    def update_from_model(self, model):
+        """Update configuration from database model."""
+        if model:
+            self.endpoint_url = model.endpoint_url
+            if model.base_model == "ollama":
+                self.model_type = "ollama"
+                # IMPORTANT: Update the adapter when model type changes
+                self.adapter = self._get_adapter("ollama")
+            self.model_config = model.default_parameters or {}
+
     def _get_adapter(self, model_type: str) -> ModelAdapter:
         """
         Get the appropriate adapter for the model type.
@@ -67,6 +81,7 @@ class OnPremLLMService(LLMService):
         adapters = {
             "llama": LlamaAdapter(),
             "deepseek": DeepseekAdapter(),
+            "ollama": OllamaAdapter(),
             "default": OpenAICompatibleAdapter()
         }
         return adapters.get(model_type, adapters["default"])
@@ -94,7 +109,11 @@ class OnPremLLMService(LLMService):
                 detail="On-premises model inference is not enabled"
             )
         
-        url = f"{self.endpoint_url}/completions"
+        # For Ollama, the endpoint already includes the full path
+        if self.model_type == "ollama" or self.endpoint_url.endswith("/api/generate"):
+            url = self.endpoint_url
+        else:
+            url = f"{self.endpoint_url}/completions"
         
         # Get actual model max tokens if not specified
         if max_tokens is None and self.model_config:
@@ -134,6 +153,8 @@ class OnPremLLMService(LLMService):
                 result = response.json()
                 
                 # Parse response using the adapter
+                logger.info(f"Using adapter: {self.adapter.__class__.__name__} for model_type: {self.model_type}")
+                logger.debug(f"Raw result from API: {result}")
                 parsed_result = await self.adapter.parse_completion_response(result)
                 
                 # Map response to our schema
@@ -200,7 +221,11 @@ class OnPremLLMService(LLMService):
                 detail="On-premises model inference is not enabled"
             )
         
-        url = f"{self.endpoint_url}/chat/completions"
+        # For Ollama, use the same endpoint for chat
+        if self.model_type == "ollama" or self.endpoint_url.endswith("/api/generate"):
+            url = self.endpoint_url
+        else:
+            url = f"{self.endpoint_url}/chat/completions"
         
         # Get actual model max tokens if not specified
         if max_tokens is None and self.model_config:
@@ -342,7 +367,11 @@ class OnPremLLMService(LLMService):
                 detail="On-premises model inference is not enabled"
             )
         
-        url = f"{self.endpoint_url}/completions"
+        # For Ollama, the endpoint already includes the full path
+        if self.model_type == "ollama" or self.endpoint_url.endswith("/api/generate"):
+            url = self.endpoint_url
+        else:
+            url = f"{self.endpoint_url}/completions"
         
         # Get actual model max tokens if not specified
         if max_tokens is None and self.model_config:
@@ -433,7 +462,11 @@ class OnPremLLMService(LLMService):
                 detail="On-premises model inference is not enabled"
             )
         
-        url = f"{self.endpoint_url}/chat/completions"
+        # For Ollama, use the same endpoint for chat
+        if self.model_type == "ollama" or self.endpoint_url.endswith("/api/generate"):
+            url = self.endpoint_url
+        else:
+            url = f"{self.endpoint_url}/chat/completions"
         
         # Get actual model max tokens if not specified
         if max_tokens is None and self.model_config:

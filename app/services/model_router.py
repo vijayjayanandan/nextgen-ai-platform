@@ -45,8 +45,25 @@ class ModelRouter:
             self.llm_services["anthropic"] = AnthropicService()
             
         if settings.ON_PREM_MODEL_ENABLED:
-            self.llm_services["on_prem"] = OnPremLLMService()
+            # Don't create a generic service - we'll create model-specific ones
+            self.llm_services["on_prem"] = None  # Will create instances as needed
     
+    
+    def _get_on_prem_service(self, model_info=None):
+        """Get or create an on-prem service instance."""
+        if model_info:
+            service = OnPremLLMService(
+                model_name=model_info.name,
+                endpoint_url=model_info.endpoint_url
+            )
+            # Update with model config if method exists
+            if hasattr(service, 'update_from_model'):
+                service.update_from_model(model_info)
+            return service
+        else:
+            # Return a default on-prem service
+            return OnPremLLMService()
+
     async def get_model_info(self, model_name: str) -> Tuple[Model, LLMService]:
         """
         Get model information and the appropriate LLM service.
@@ -62,14 +79,19 @@ class ModelRouter:
         """
         # Check if this is an on-prem model first
         if hasattr(settings, 'ON_PREM_MODELS') and model_name in settings.ON_PREM_MODELS:
-            if "on_prem" not in self.llm_services:
+            if not settings.ON_PREM_MODEL_ENABLED:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"On-premises service not configured for model {model_name}"
                 )
-            # Create a specific instance of the OnPremLLMService for this model
-            on_prem_service = OnPremLLMService(model_name=model_name)
-            return None, on_prem_service
+            # Get model info from database
+            result = await self.db.execute(select(Model).filter(Model.name == model_name))
+            model = result.scalars().first()
+            
+            # Create service instance
+            on_prem_service = self._get_on_prem_service(model)
+            
+            return model, on_prem_service
         
         # Query the model from the database
         result = await self.db.execute(select(Model).filter(Model.name == model_name))
@@ -86,13 +108,25 @@ class ModelRouter:
             elif any(name in model_name for name in ["llama"]):
                 provider = "on_prem"
                 # Create a specific Llama instance
-                if "on_prem" in self.llm_services:
-                    return None, OnPremLLMService(model_name="llama-7b")
+                if settings.ON_PREM_MODEL_ENABLED:
+                    # Try to get from database first
+                    result = await self.db.execute(select(Model).filter(Model.name == model_name))
+                    model = result.scalars().first()
+                    if model:
+                        return model, OnPremLLMService(model_name=model_name, endpoint_url=model.endpoint_url)
+                    else:
+                        return None, OnPremLLMService(model_name="llama-7b")
             elif any(name in model_name for name in ["deepseek"]):
                 provider = "on_prem"
                 # Create a specific Deepseek instance
-                if "on_prem" in self.llm_services:
-                    return None, OnPremLLMService(model_name="deepseek-7b")
+                if settings.ON_PREM_MODEL_ENABLED:
+                    # Try to get from database first
+                    result = await self.db.execute(select(Model).filter(Model.name == model_name))
+                    model = result.scalars().first()
+                    if model:
+                        return model, OnPremLLMService(model_name=model_name, endpoint_url=model.endpoint_url)
+                    else:
+                        return None, OnPremLLMService(model_name="deepseek-7b")
             else:
                 provider = "on_prem"
                 
@@ -107,6 +141,16 @@ class ModelRouter:
         
         # Get the appropriate service based on the model provider
         provider_key = model.provider.value
+
+        # Special handling for on_prem models
+        if provider_key == "on_prem":
+            if not settings.ON_PREM_MODEL_ENABLED:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"On-premises service not configured"
+                )
+            return model, self._get_on_prem_service(model)
+
         
         if provider_key not in self.llm_services:
             raise HTTPException(
@@ -198,14 +242,14 @@ class ModelRouter:
         
         # Override routing for sensitive data to on-prem if needed
         if is_sensitive and model_info and not model_info.allowed_for_protected_b:
-            if "on_prem" not in self.llm_services:
+            if not settings.ON_PREM_MODEL_ENABLED:
                 raise HTTPException(
                     status_code=400,
                     detail="Query contains Protected B data but on-prem service not available"
                 )
                 
             logger.info(f"Routing sensitive query to on-prem service instead of {model}")
-            llm_service = self.llm_services["on_prem"]
+            llm_service = self._get_on_prem_service(model_info)
             
             # Use the default on-prem model
             if model_info:
@@ -300,14 +344,14 @@ class ModelRouter:
         
         # Override routing for sensitive data to on-prem if needed
         if is_sensitive and model_info and not model_info.allowed_for_protected_b:
-            if "on_prem" not in self.llm_services:
+            if not settings.ON_PREM_MODEL_ENABLED:
                 raise HTTPException(
                     status_code=400,
                     detail="Query contains Protected B data but on-prem service not available"
                 )
                 
             logger.info(f"Routing sensitive chat to on-prem service instead of {model}")
-            llm_service = self.llm_services["on_prem"]
+            llm_service = self._get_on_prem_service(model_info)
             
             # Use the default on-prem model
             if model_info:
@@ -392,14 +436,14 @@ class ModelRouter:
         
         # Override routing for sensitive data to on-prem if needed
         if is_sensitive and model_info and not model_info.allowed_for_protected_b:
-            if "on_prem" not in self.llm_services:
+            if not settings.ON_PREM_MODEL_ENABLED:
                 raise HTTPException(
                     status_code=400,
                     detail="Query contains Protected B data but on-prem service not available"
                 )
                 
             logger.info(f"Routing sensitive streaming query to on-prem service instead of {model}")
-            llm_service = self.llm_services["on_prem"]
+            llm_service = self._get_on_prem_service(model_info)
             
             # Use the default on-prem model
             if model_info:
@@ -491,14 +535,14 @@ class ModelRouter:
         
         # Override routing for sensitive data to on-prem if needed
         if is_sensitive and model_info and not model_info.allowed_for_protected_b:
-            if "on_prem" not in self.llm_services:
+            if not settings.ON_PREM_MODEL_ENABLED:
                 raise HTTPException(
                     status_code=400,
                     detail="Query contains Protected B data but on-prem service not available"
                 )
                 
             logger.info(f"Routing sensitive streaming chat to on-prem service instead of {model}")
-            llm_service = self.llm_services["on_prem"]
+            llm_service = self._get_on_prem_service(model_info)
             
             # Use the default on-prem model
             if model_info:
