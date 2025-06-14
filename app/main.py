@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.pii_middleware import PIIFilteringMiddleware
 from app.db.session import create_db_and_tables
 
 
@@ -43,11 +44,21 @@ app = FastAPI(
 # Set up CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.ALLOWED_HOSTS] if settings.ALLOWED_HOSTS != "*" else ["*"],
+    allow_origins=settings.ALLOWED_HOSTS if settings.ALLOWED_HOSTS != ["*"] else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Enhanced PII Filtering Middleware
+if settings.ENABLE_PII_FILTERING:
+    app.add_middleware(
+        PIIFilteringMiddleware,
+        enable_filtering=settings.ENABLE_PII_FILTERING
+    )
+    logger.info("Enhanced PII filtering middleware enabled")
+else:
+    logger.info("Enhanced PII filtering middleware disabled")
 
 
 # Request logging middleware

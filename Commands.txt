@@ -1,0 +1,72 @@
+az vm deallocate --resource-group nextgen-ai-rg --name ai-platform-vm
+
+az vm show --resource-group nextgen-ai-rg --name ai-platform-vm --query "powerState"
+
+az vm start --resource-group nextgen-ai-rg --name ai-platform-vm
+
+source venv/bin/activate
+
+
+# Check if Ollama is running 
+ps aux | grep ollama 
+# Check if it's listening on port 11434 
+sudo netstat -tlnp | grep 11434 
+# Test Ollama directly 
+curl http://localhost:11434/api/tags
+
+ollama serve &
+
+
+# First get an auth token
+TOKEN=$(curl -s -X POST "http://localhost:8000/api/v1/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@example.com&password=adminpassword" | jq -r '.access_token')
+
+# List all available models
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/api/v1/models/
+
+# Test completion with DeepSeek Coder
+curl -X POST http://localhost:8000/api/v1/completions/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Write a Python function to calculate fibonacci numbers",
+    "model": "deepseek-coder:1.3b",
+    "max_tokens": 200
+  }'
+
+# Test chat completion with Mistral
+curl -X POST http://localhost:8000/api/v1/chat/completions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mistral:7b-instruct",
+    "messages": [
+      {"role": "user", "content": "Provide me step by step instructions to implement Model Context Protocol server?"}
+    ]
+  }'
+
+
+# Make sure the app restarted with the changes
+pkill -f "uvicorn app.main:app"
+cd ~/ai-platform-backend
+source venv/bin/activate
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > app.log 2>&1 &
+
+# Wait for it to start
+sleep 5
+
+# Test the completion endpoint
+curl -X POST http://localhost:8000/api/v1/completions/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "def fibonacci(n):",
+    "model": "deepseek-coder:1.3b",
+    "max_tokens": 200
+  }'
+
+
+
+

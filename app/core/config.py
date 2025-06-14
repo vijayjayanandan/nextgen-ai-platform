@@ -94,6 +94,15 @@ class Settings(BaseSettings):
     ENABLE_EXPLANATION: bool = True
     ENABLE_FUNCTION_CALLING: bool = False
 
+    # Enhanced PII Filtering Configuration
+    ENABLE_PII_FILTERING: bool = True
+    PII_RISK_THRESHOLD: float = 0.7
+    ENABLE_ML_PII_DETECTION: bool = False
+    DEFAULT_ANONYMIZATION_METHOD: str = "tokenization"
+    ENABLE_REVERSIBLE_ANONYMIZATION: bool = True
+    PII_PROCESSING_TIMEOUT_SECONDS: int = 5
+    ENABLE_PII_AUDIT_LOGGING: bool = True
+
     # Performance
     MAX_CONCURRENT_REQUESTS: int = 100
     REQUEST_TIMEOUT_SECONDS: int = 30
