@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import json
 import time
 from fastapi import Request, Response
@@ -229,7 +229,7 @@ class PIIFilteringMiddleware(BaseHTTPMiddleware):
         data: Dict[str, Any], 
         user_id: str, 
         direction: str
-    ) -> tuple[Dict[str, Any], bool]:
+    ) -> Tuple[Dict[str, Any], bool]:
         """
         Filter PII from JSON data structure.
         
