@@ -12,7 +12,7 @@ from app.core.logging import get_logger, audit_log
 from app.db.session import get_db
 from app.models.chat import Conversation, Message, MessageRole
 from app.services.model_router import ModelRouter, get_model_router
-from app.services.moderation.content_filter import ContentFilter
+from app.services.moderation.enhanced_content_filter import EnterpriseContentFilter
 from app.services.retrieval.vector_db_service import VectorDBService
 from app.services.explanation.attribution_service import AttributionService
 from app.services.embeddings.embedding_service import EmbeddingService
@@ -47,7 +47,7 @@ class OrchestratorService:
         self.model_router = model_router
         
         # Initialize supporting services
-        self.content_filter = ContentFilter()
+        self.content_filter = EnterpriseContentFilter()
         self.vector_db_service = VectorDBService()
         self.embedding_service = EmbeddingService()
         self.attribution_service = AttributionService(db)
@@ -121,8 +121,8 @@ class OrchestratorService:
         if source_chunks:
             # Build context from retrieved chunks
             context_text = "\n\n".join([
-                f"Document: {chunk.get('metadata', {}).get('document_title', 'Untitled')}\n"
-                f"Content: {chunk.get('content', '')}"
+                f"Document: {chunk.metadata.get('document_title', 'Untitled') if chunk.metadata else 'Untitled'}\n"
+                f"Content: {chunk.content}"
                 for chunk in source_chunks
             ])
             
@@ -179,10 +179,10 @@ class OrchestratorService:
             # Also add source document information to response
             completion_response.source_documents = [
                 {
-                    "id": chunk.get("document_id", ""),
-                    "title": chunk.get("metadata", {}).get("document_title", "Untitled"),
-                    "content": chunk.get("content", ""),
-                    "metadata": chunk.get("metadata", {})
+                    "id": str(chunk.document_id),
+                    "title": chunk.metadata.get("document_title", "Untitled") if chunk.metadata else "Untitled",
+                    "content": chunk.content,
+                    "metadata": chunk.metadata or {}
                 }
                 for chunk in source_chunks
             ][:5]  # Limit to top 5 to avoid large responses
@@ -296,8 +296,8 @@ class OrchestratorService:
         if source_chunks:
             # Build context from retrieved chunks
             context_text = "\n\n".join([
-                f"Document: {chunk.get('metadata', {}).get('document_title', 'Untitled')}\n"
-                f"Content: {chunk.get('content', '')}"
+                f"Document: {chunk.metadata.get('document_title', 'Untitled') if chunk.metadata else 'Untitled'}\n"
+                f"Content: {chunk.content}"
                 for chunk in source_chunks
             ])
             
@@ -377,10 +377,10 @@ class OrchestratorService:
             # Add source document information to response
             chat_completion_response.source_documents = [
                 {
-                    "id": chunk.get("document_id", ""),
-                    "title": chunk.get("metadata", {}).get("document_title", "Untitled"),
-                    "content": chunk.get("content", ""),
-                    "metadata": chunk.get("metadata", {})
+                    "id": str(chunk.document_id),
+                    "title": chunk.metadata.get("document_title", "Untitled") if chunk.metadata else "Untitled",
+                    "content": chunk.content,
+                    "metadata": chunk.metadata or {}
                 }
                 for chunk in source_chunks
             ][:5]  # Limit to top 5 to avoid large responses

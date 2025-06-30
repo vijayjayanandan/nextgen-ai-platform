@@ -597,6 +597,70 @@ class EnterpriseContentFilter(ContentFilter):
         
         logger.info("Enterprise content filter initialized with enhanced PII detection")
     
+    async def filter_prompt(
+        self, 
+        prompt: str, 
+        user_id: str, 
+        context: Dict[str, Any] = None
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Filter prompt content using enhanced PII detection.
+        Maintains compatibility with orchestrator interface.
+        
+        Args:
+            prompt: Prompt text to filter
+            user_id: User ID for audit logging
+            context: Additional context for filtering
+            
+        Returns:
+            Tuple of (filtered_prompt, filter_details)
+        """
+        result = await self.enhanced_filter(prompt, user_id, context)
+        
+        # Convert FilterResult to orchestrator-compatible format
+        filter_details = {
+            "filtered": not result.is_safe,
+            "pii_detected": result.pii_detected,
+            "risk_score": result.risk_score,
+            "detections": len(result.detections),
+            "anonymization_applied": result.anonymization_applied,
+            "processing_time_ms": result.processing_time_ms
+        }
+        
+        return result.filtered_content, filter_details
+    
+    async def filter_response(
+        self, 
+        response: str, 
+        user_id: str, 
+        context: Dict[str, Any] = None
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Filter response content using enhanced PII detection.
+        Maintains compatibility with orchestrator interface.
+        
+        Args:
+            response: Response text to filter
+            user_id: User ID for audit logging
+            context: Additional context for filtering
+            
+        Returns:
+            Tuple of (filtered_response, filter_details)
+        """
+        result = await self.enhanced_filter(response, user_id, context)
+        
+        # Convert FilterResult to orchestrator-compatible format
+        filter_details = {
+            "filtered": not result.is_safe,
+            "pii_detected": result.pii_detected,
+            "risk_score": result.risk_score,
+            "detections": len(result.detections),
+            "anonymization_applied": result.anonymization_applied,
+            "processing_time_ms": result.processing_time_ms
+        }
+        
+        return result.filtered_content, filter_details
+    
     async def enhanced_filter(
         self, 
         content: str, 

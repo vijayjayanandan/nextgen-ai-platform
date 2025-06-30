@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 from app.models.document import Document, DocumentChunk, DocumentStatus
 from app.schemas.document import DocumentCreate, DocumentChunkCreate
 from app.services.embeddings.embedding_service import EmbeddingService
+from app.services.retrieval.document_extractors import get_extractor, DocumentExtractionError
 
 logger = get_logger(__name__)
 
@@ -262,6 +263,69 @@ class DocumentProcessor:
             await self._update_document_failed(document_id, str(e))
             return {"status": "error", "message": str(e)}
     
+    async def _extract_content_with_extractor(self, document: Document) -> Optional[str]:
+        """
+        Extract content from a document using the unified extractor system.
+        
+        Args:
+            document: Document model instance
+            
+        Returns:
+            Extracted text content or None if extraction fails
+        """
+        try:
+            import os
+            
+            # Enhanced debug logging for file path resolution
+            logger.info(f"🔍 DEBUG: Starting extraction for document {document.id}")
+            logger.info(f"🔍 DEBUG: Document storage_path: {document.storage_path}")
+            logger.info(f"🔍 DEBUG: Document content_type: {document.content_type}")
+            logger.info(f"🔍 DEBUG: Current working directory: {os.getcwd()}")
+            
+            # Check if file exists before attempting to read
+            if not os.path.exists(document.storage_path):
+                logger.error(f"🔍 DEBUG: File does not exist at storage_path: {document.storage_path}")
+                return None
+            
+            file_size = os.path.getsize(document.storage_path)
+            logger.info(f"🔍 DEBUG: File exists, size: {file_size} bytes")
+            
+            logger.debug(f"Reading document file: {document.storage_path}")
+            with open(document.storage_path, "rb") as f:
+                file_bytes = f.read()
+            
+            # Derive filename from storage path for extractor
+            filename = os.path.basename(document.storage_path) if document.storage_path else document.title
+            logger.info(f"🔍 DEBUG: Read {len(file_bytes)} bytes from {filename}")
+            
+            # Debug extractor selection
+            logger.info(f"🔍 DEBUG: Getting extractor for filename: {filename}")
+            extractor = get_extractor(filename, file_bytes)
+            logger.info(f"🔍 DEBUG: Using extractor: {extractor.__class__.__name__}")
+            
+            # Attempt extraction with detailed error handling
+            logger.info(f"🔍 DEBUG: Starting content extraction...")
+            extracted_content = extractor.extract(file_bytes)
+            
+            if extracted_content:
+                logger.info(f"🔍 DEBUG: Extraction successful, content length: {len(extracted_content)}")
+                logger.info(f"🔍 DEBUG: Content preview: {extracted_content[:100]}...")
+            else:
+                logger.error(f"🔍 DEBUG: Extraction returned None/empty content")
+            
+            return extracted_content
+
+        except DocumentExtractionError as e:
+            logger.error(f"🔍 DEBUG: DocumentExtractionError for document {document.id}: {str(e)}")
+            import traceback
+            logger.error(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
+            return None
+        except Exception as e:
+            logger.error(f"🔍 DEBUG: Unexpected error extracting content from document {document.id}: {str(e)}")
+            import traceback
+            logger.error(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
+            return None
+    
     async def _read_document_content(self, document: Document) -> Optional[str]:
         """
         Read the content of a document from storage.
@@ -272,28 +336,102 @@ class DocumentProcessor:
         Returns:
             Document content as string or None if not found
         """
-        # This implementation depends on how documents are stored
-        # For example, from a file system, S3, or another storage service
-        
-        # For simplicity, we'll assume the content is stored in a file
-        # In a real implementation, this would need to be adapted
         try:
             import os
+            from pathlib import Path
             
             # Check if we have a storage path
             if not document.storage_path:
                 logger.error(f"Document {document.id} has no storage path")
                 return None
+            
+            # Resolve to absolute path to handle working directory issues
+            storage_path = document.storage_path
+            if not os.path.isabs(storage_path):
+                # Convert relative path to absolute path
+                current_dir = os.getcwd()
+                storage_path = os.path.join(current_dir, storage_path)
+                logger.debug(f"Converted relative path to absolute: {storage_path}")
+            
+            # Normalize the path for cross-platform compatibility
+            storage_path = os.path.normpath(storage_path)
+            logger.debug(f"Normalized storage path: {storage_path}")
+            
+            if not os.path.exists(storage_path):
+                logger.error(f"Document file not found: {storage_path} (original: {document.storage_path})")
+                logger.debug(f"Current working directory: {os.getcwd()}")
+                logger.debug(f"Checking if original path exists: {os.path.exists(document.storage_path)}")
+                return None
+            
+            # Log file info for debugging
+            file_size = os.path.getsize(storage_path)
+            logger.debug(f"Found document file: {storage_path} ({file_size} bytes)")
+            
+            # Use unified extractor system for all document types
+            # Temporarily update the document storage_path to the resolved path
+            original_path = document.storage_path
+            document.storage_path = storage_path
+            
+            try:
+                result = await self._extract_content_with_extractor(document)
+                return result
+            finally:
+                # Restore original path
+                document.storage_path = original_path
                 
-            # Read the file
-            # In production, use async file IO or cloud storage SDK
-            with open(document.storage_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                
-            return content
         except Exception as e:
             logger.error(f"Error reading document content: {str(e)}")
+            import traceback
+            logger.debug(f"Full traceback: {traceback.format_exc()}")
             return None
+    
+    def _normalize_text_content(self, text: str) -> str:
+        """
+        Normalize extracted text content for consistent processing.
+        
+        Args:
+            text: Raw extracted text (should already be a string from extractors)
+            
+        Returns:
+            Normalized text content
+        """
+        if not text:
+            return ""
+        
+        try:
+            # Text should already be a string from extractors, but check just in case
+            if isinstance(text, bytes):
+                logger.warning("Received bytes instead of string in _normalize_text_content - this indicates an extractor issue")
+                text = text.decode('utf-8', errors='replace')
+            
+            # Ensure we have a string
+            if not isinstance(text, str):
+                logger.warning(f"Received non-string type {type(text)} in _normalize_text_content")
+                text = str(text)
+            
+            # Normalize unicode characters
+            import unicodedata
+            text = unicodedata.normalize('NFKC', text)
+            
+            # Clean up common PDF extraction artifacts
+            # Remove excessive whitespace
+            import re
+            text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)  # Multiple newlines to double
+            text = re.sub(r'[ \t]+', ' ', text)  # Multiple spaces/tabs to single space
+            text = re.sub(r'[ \t]*\n[ \t]*', '\n', text)  # Clean line breaks
+            
+            # Remove common PDF artifacts
+            text = re.sub(r'\x0c', '\n', text)  # Form feed to newline
+            text = re.sub(r'[\x00-\x08\x0b\x0e-\x1f\x7f]', '', text)  # Control characters
+            
+            # Ensure text ends with newline
+            text = text.strip() + '\n'
+            
+            return text
+            
+        except Exception as e:
+            logger.warning(f"Error normalizing text content: {str(e)}")
+            return text  # Return original if normalization fails
     
     def _chunk_document(
         self,
@@ -590,8 +728,24 @@ class DocumentProcessor:
                         # Vector DB reference will be added by the embedding service
                     }
                     
+                    # Get document info for metadata
+                    result = await self.db.execute(select(Document).where(Document.id == chunk.document_id))
+                    document = result.scalars().first()
+                    
+                    # Create serializable metadata from chunk
+                    chunk_metadata = {
+                        "chunk_id": str(chunk.id),
+                        "document_id": str(chunk.document_id),
+                        "document_title": document.title if document else "Untitled",
+                        "source_type": document.source_type.value if document else "unknown",
+                        "chunk_index": chunk.chunk_index,
+                        "content": chunk.content,
+                        "page_number": chunk.page_number,
+                        "section_title": chunk.section_title
+                    }
+                    
                     # Store in vector DB and database
-                    await self.embedding_service.store_embedding(embedding, chunk.metadata)
+                    await self.embedding_service.store_embedding(embedding, chunk_metadata)
             
             return len(chunks)
         except Exception as e:

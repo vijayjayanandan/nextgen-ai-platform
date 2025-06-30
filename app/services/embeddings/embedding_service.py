@@ -6,7 +6,9 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.services.retrieval.vector_db_service import VectorDBService
+from app.services.retrieval.qdrant_service import QdrantService
+from app.services.embeddings.local_embedding_service import get_local_embedding_service
+from app.schemas.embedding import VectorSearchQuery
 
 logger = get_logger(__name__)
 
@@ -21,7 +23,7 @@ class EmbeddingService:
         model_name: str = "text-embedding-ada-002",
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        vector_db_service: Optional[VectorDBService] = None
+        qdrant_service: Optional[QdrantService] = None
     ):
         """
         Initialize the embedding service.
@@ -30,7 +32,7 @@ class EmbeddingService:
             model_name: Name of the embedding model to use
             api_key: API key for the embedding provider (defaults to OpenAI key)
             api_base: Base URL for the embedding API (defaults to OpenAI base)
-            vector_db_service: Service for storing embeddings in a vector database
+            qdrant_service: Service for storing embeddings in Qdrant vector database
         """
         self.model_name = model_name
         self.model_version = "1"  # Simplified, would be fetched from API in production
@@ -52,8 +54,8 @@ class EmbeddingService:
             self.api_base = api_base or settings.OPENAI_API_BASE
             self.provider = "openai"
         
-        # Initialize vector DB service if not provided
-        self.vector_db_service = vector_db_service or VectorDBService()
+        # Initialize Qdrant service if not provided
+        self.qdrant_service = qdrant_service
     
     async def generate_embeddings(
         self,
@@ -61,6 +63,7 @@ class EmbeddingService:
     ) -> List[List[float]]:
         """
         Generate embeddings for a list of texts.
+        Prioritizes local embeddings with API fallback.
         
         Args:
             texts: List of text strings to embed
@@ -70,7 +73,19 @@ class EmbeddingService:
         """
         if not texts:
             return []
-            
+        
+        # Try local embeddings first (no API key required)
+        try:
+            logger.debug(f"Attempting local embedding generation for {len(texts)} texts")
+            local_service = get_local_embedding_service()
+            embeddings = await local_service.generate_embeddings(texts)
+            logger.info(f"Successfully generated {len(embeddings)} local embeddings")
+            return embeddings
+        except Exception as e:
+            logger.warning(f"Local embedding generation failed: {e}")
+            logger.info("Falling back to API-based embeddings")
+        
+        # Fallback to API-based embeddings
         if self.provider == "openai":
             return await self._generate_openai_embeddings(texts)
         elif self.provider == "on_prem":
@@ -123,17 +138,29 @@ class EmbeddingService:
             }
         }
         
-        # Add additional metadata if provided
+        # Add additional metadata if provided, filtering out None values
         if metadata:
-            vector_obj["metadata"].update(metadata)
+            # Filter out None values as Pinecone doesn't accept them
+            filtered_metadata = {
+                k: v for k, v in metadata.items() 
+                if v is not None and v != ""
+            }
+            vector_obj["metadata"].update(filtered_metadata)
         
-        # Store in vector database
-        result = await self.vector_db_service.upsert_vectors([vector_obj])
-        
-        # Store the vector DB reference in the embedding
-        embedding["vector_db_id"] = result.get("id", vector_id)
-        
-        return result
+        # Store in Qdrant if service is available
+        if self.qdrant_service:
+            # Convert to Qdrant format
+            chunks = [{
+                "id": vector_obj["id"],
+                "content": metadata.get("content", "") if metadata else "",
+                "metadata": vector_obj["metadata"]
+            }]
+            result = await self.qdrant_service.upsert_documents(chunks)
+            embedding["vector_db_id"] = vector_obj["id"]
+            return result
+        else:
+            logger.warning("No Qdrant service available for embedding storage")
+            return {"success": 0, "failed": 1, "errors": ["No Qdrant service available"]}
     
     async def _generate_openai_embeddings(
         self,
@@ -283,18 +310,41 @@ class EmbeddingService:
                 detail="Failed to generate embedding for query"
             )
         
-        # Search the vector database
-        search_query = {
-            "query": query_embedding,
-            "top_k": top_k,
-            "include_metadata": True,
-            "include_vectors": False,
-            "filters": filters
-        }
+        # Create proper VectorSearchQuery object
+        search_query = VectorSearchQuery(
+            query=query_embedding,
+            filters=filters,
+            top_k=top_k,
+            include_metadata=True,
+            include_vectors=False
+        )
         
         try:
-            results = await self.vector_db_service.search_vectors(search_query)
-            return [result.dict() for result in results]
+            if self.qdrant_service:
+                # Use Qdrant for semantic search
+                results = await self.qdrant_service.search_documents(
+                    query=query,
+                    metadata_filter=filters,
+                    search_type="semantic",
+                    limit=top_k,
+                    include_vectors=False
+                )
+                # Convert to expected format
+                return [
+                    {
+                        "id": result.id,
+                        "score": result.score,
+                        "content": result.content,
+                        "metadata": result.metadata
+                    }
+                    for result in results
+                ]
+            else:
+                logger.error("No Qdrant service available for semantic search")
+                raise HTTPException(
+                    status_code=500,
+                    detail="No Qdrant service available for semantic search"
+                )
         except Exception as e:
             logger.error(f"Error performing semantic search: {str(e)}")
             raise HTTPException(

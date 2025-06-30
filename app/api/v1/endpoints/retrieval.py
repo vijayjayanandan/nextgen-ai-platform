@@ -49,10 +49,24 @@ async def semantic_search(
         # Extract document IDs from results
         document_ids = set()
         for result in results:
-            if "document_id" in result:
+            # Handle both dict and object results
+            if hasattr(result, 'metadata') and result.metadata:
+                doc_id = result.metadata.get("document_id")
+            elif isinstance(result, dict) and "metadata" in result:
+                doc_id = result["metadata"].get("document_id")
+            elif isinstance(result, dict) and "document_id" in result:
+                doc_id = result["document_id"]
+            else:
+                continue
+                
+            if doc_id:
                 try:
-                    document_ids.add(uuid.UUID(result["document_id"]))
-                except ValueError:
+                    # Convert to UUID if it's a string
+                    if isinstance(doc_id, str):
+                        document_ids.add(uuid.UUID(doc_id))
+                    elif isinstance(doc_id, uuid.UUID):
+                        document_ids.add(doc_id)
+                except (ValueError, TypeError):
                     continue
         
         # Fetch document metadata
@@ -86,7 +100,7 @@ async def semantic_search(
         # Format response
         formatted_results = []
         for result in results:
-            doc_id = result.get("document_id", "")
+            doc_id = str(result.document_id)
             
             # Skip if document not found or access denied
             if doc_id not in documents:
@@ -94,16 +108,16 @@ async def semantic_search(
                 
             # Format result
             formatted_result = {
-                "chunk_id": result.get("chunk_id", ""),
+                "chunk_id": str(result.chunk_id),
                 "document_id": doc_id,
                 "document": documents[doc_id],
-                "similarity": result.get("similarity", 0),
-                "metadata": result.get("metadata", {})
+                "similarity": result.similarity,
+                "metadata": result.metadata or {}
             }
             
             # Include content if requested
             if include_content:
-                formatted_result["content"] = result.get("content", "")
+                formatted_result["content"] = result.content
             
             formatted_results.append(formatted_result)
         

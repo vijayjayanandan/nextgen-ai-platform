@@ -70,11 +70,19 @@ class Settings(BaseSettings):
             path=f"{values.get('POSTGRES_DB') or ''}",
         )
 
-    # Vector Database
-    VECTOR_DB_TYPE: str = "pinecone"
-    VECTOR_DB_URI: str
-    VECTOR_DB_API_KEY: str
+    # Vector Database (Legacy - kept for backward compatibility)
+    VECTOR_DB_TYPE: str = "qdrant"  # Changed default to qdrant
+    VECTOR_DB_URI: str = ""  # Made optional
+    VECTOR_DB_API_KEY: str = ""  # Made optional
     VECTOR_DB_NAMESPACE: str = "ircc-documents"
+    
+    # Qdrant Configuration
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: int = 6333
+    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_COLLECTION_NAME: str = "documents"
+    QDRANT_MEMORY_COLLECTION: str = "conversation_memory"
+    QDRANT_TIMEOUT: int = 30
 
     # LLM Services
     OPENAI_API_KEY: Optional[str] = None
@@ -84,6 +92,13 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
     ANTHROPIC_API_BASE: str = "https://api.anthropic.com"
 
+    # Local Embedding Configuration
+    EMBEDDING_MODEL_TYPE: str = "local"  # "local", "openai", "anthropic"
+    LOCAL_EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_CACHE_SIZE: int = 1000
+    EMBEDDING_BATCH_SIZE: int = 32
+    EMBEDDING_DEVICE: str = "cpu"  # "cpu", "cuda", "auto"
+
     # On-Premises Model Config
     ON_PREM_MODEL_ENABLED: bool = False
     ON_PREM_MODEL_ENDPOINT: Optional[str] = None
@@ -91,8 +106,15 @@ class Settings(BaseSettings):
     # Feature Flags
     ENABLE_RETRIEVAL_AUGMENTATION: bool = True
     ENABLE_CONTENT_FILTERING: bool = True
-    ENABLE_EXPLANATION: bool = True
+    ENABLE_EXPLANATION: bool = False
     ENABLE_FUNCTION_CALLING: bool = False
+
+    # RAG Model Configuration (LLM-Agnostic) - Claude Setup
+    RAG_QUERY_ANALYSIS_MODEL: str = "claude-3-haiku-20240307"
+    RAG_GENERATION_MODEL: str = "claude-3-5-sonnet-20241022"
+    RAG_RERANKING_MODEL: str = "claude-3-haiku-20240307"
+    RAG_MEMORY_RETRIEVAL_MODEL: str = "claude-3-haiku-20240307"
+    RAG_CITATION_MODEL: str = "claude-3-haiku-20240307"
 
     # Enhanced PII Filtering Configuration
     ENABLE_PII_FILTERING: bool = True

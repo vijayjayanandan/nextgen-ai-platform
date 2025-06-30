@@ -66,6 +66,9 @@ async def upload_document(
         filename = f"{document_uuid}{file_ext}"
         file_path = os.path.join(storage_dir, filename)
         
+        # Convert to absolute path to prevent working directory issues
+        file_path = os.path.abspath(file_path)
+        
         # Save file to storage
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -271,7 +274,7 @@ async def get_document(
                     "chunk_index": chunk.chunk_index,
                     "page_number": chunk.page_number,
                     "section_title": chunk.section_title,
-                    "metadata": chunk.metadata
+                    "metadata": chunk.metadata if isinstance(chunk.metadata, dict) else {}
                 }
                 for chunk in chunks
             ]

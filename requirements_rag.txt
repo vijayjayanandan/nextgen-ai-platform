@@ -1,0 +1,37 @@
+# Additional requirements for Production RAG System
+# Add these to your existing requirements.txt
+
+# Vector Database
+qdrant-client>=1.7.0
+
+# LangGraph for workflow orchestration
+langgraph>=0.0.40
+langchain-core>=0.1.0
+
+# Enhanced text processing
+spacy>=3.7.0
+nltk>=3.8.0
+
+# BM25 for keyword search (optional - can implement custom)
+rank-bm25>=0.2.2
+
+# Additional ML libraries for reranking
+sentence-transformers>=2.2.2
+
+# Async HTTP client for better performance
+httpx>=0.25.0
+
+# JSON schema validation
+jsonschema>=4.19.0
+
+# Memory optimization
+psutil>=5.9.0
+
+# Monitoring and observability (optional)
+prometheus-client>=0.17.0
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+
+# Development and testing
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0

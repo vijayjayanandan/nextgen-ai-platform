@@ -34,24 +34,35 @@ async def init_db():
         # Add models
         models_to_add = [
             {
-                "name": "claude-3-opus-20240229",
-                "display_name": "Claude 3 Opus",
-                "description": "Anthropic's most powerful model",
+                "name": "claude-3-5-sonnet-20241022",
+                "display_name": "Claude 3.5 Sonnet",
+                "description": "Anthropic's most capable model",
                 "type": ModelType.LLM,
                 "provider": ModelProvider.ANTHROPIC,
                 "deployment_type": ModelDeploymentType.API,
-                "max_tokens": 100000,
+                "max_tokens": 200000,
                 "supports_functions": True,
                 "status": ModelStatus.ACTIVE
             },
             {
-                "name": "claude-3-sonnet-20240229",
-                "display_name": "Claude 3 Sonnet",
-                "description": "Anthropic's balanced model",
+                "name": "claude-3-haiku-20240307",
+                "display_name": "Claude 3 Haiku",
+                "description": "Anthropic's fastest model",
                 "type": ModelType.LLM,
                 "provider": ModelProvider.ANTHROPIC,
                 "deployment_type": ModelDeploymentType.API,
-                "max_tokens": 100000,
+                "max_tokens": 200000,
+                "supports_functions": True,
+                "status": ModelStatus.ACTIVE
+            },
+            {
+                "name": "claude-3-opus-20240229",
+                "display_name": "Claude 3 Opus",
+                "description": "Anthropic's most powerful model (legacy)",
+                "type": ModelType.LLM,
+                "provider": ModelProvider.ANTHROPIC,
+                "deployment_type": ModelDeploymentType.API,
+                "max_tokens": 200000,
                 "supports_functions": True,
                 "status": ModelStatus.ACTIVE
             }

@@ -1,0 +1,360 @@
+[0;34mGetting fresh access token...[0m
+[0;32mToken obtained: eyJhbGciOiJIUzI1NiIs...[0m
+
+[1;33mStarting RAG System Tests (Working Method)[0m
+
+[0;34m========================================[0m
+[1;33mTEST 1: Language Requirements[0m
+[0;34m========================================[0m
+Query: [0;32mWhat are the language requirements for Canadian citizenship?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the provided context, the language requirements for Canadian citizenship are:
+
+1. Applicants between 18 and 54 years of age must demonstrate proficiency in either English or French.
+
+2. This can be proven through either:
+- Completion of secondary or post-secondary education in English or French
+- Achievement of Canadian Language Benchmark (CLB) 4 in speaking and listening
+- Approved language tests such as CELPIP, IELTS, or TEF
+
+The language assessment focuses on speaking and listening abilities to ensure adequate knowledge of one of Canada's official languages.
+
+Note that reasonable accommodations are available for persons with disabilities, and applicants outside the age range of 18-54 are not required to meet the language requirements."
+esponsibilities. ELIGIBILITY REQUIREMENTS
+...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 1077
+- Completion Tokens: 166
+- Source Documents: 6
+
+[0;34mSources:[0m
+      1 Immigration_Policy.txt
+      4 citizenship_guide.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 2: Physical Presence[0m
+[0;34m========================================[0m
+Query: [0;32mHow many days of physical presence are required for Canadian citizenship?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+According to both the Immigration Policy and Citizenship Guide documents, you must have been physically present in Canada for at least 1[1],095 days (3 years) within the 5 years immediately before the date of your application. Additionally, the Immigration Policy mentions that days spent in Canada as a temporary resident before becoming a permanent resident can count as half-days toward this requirement, with a maximum credit of 365 days.[2]
+
+Sources:
+[1] Unknown Document
+[2] Unknown Document"
+esponsibilities. ELIGIBILITY REQUIREMENTS
+Permanent residents may apply for citizenship after meeting physical presence requirements of 1,095 days within the five years immediately before application. Days spent in Canada as a temporary resident before becoming a permanent resident count as half-days...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 1007
+- Completion Tokens: 91
+- Source Documents: 6
+
+[0;34mSources:[0m
+      2 Immigration_Policy.txt
+      3 citizenship_guide.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 3: Immigration Targets[0m
+[0;34m========================================[0m
+Query: [0;32mWhat is Canada's immigration target for 2024?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+According to the context, Canada's immigration levels plan targets the admission of 485,000 new permanent residents by 2024[1].
+
+Sources:
+[1] Unknown Document"
+fugee resettlement programs and in-Canada asylum processing. The policy emphasizes a balanced approach that considers demographic trends, labor market demands, and regional economic development needs. Annual immigration levels are established through comprehensive planning processes that involve federal, provincial, and territorial governments, as well as stakeholder consultations. Key performance indicators include immigration targets, processing times, integration outcomes, and economic impacts. The policy framework is subject to regular review and adjustment to ensure alignment with Canada's evolving needs and international oblig...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 804
+- Completion Tokens: 30
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 4: Express Entry System[0m
+[0;34m========================================[0m
+Query: [0;32mExplain how the Express Entry system works and what programs it manages.[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the context provided, I can explain that the Express Entry system is Canada's main economic immigration management system that operates as follows:
+
+1. Program Management:
+- It manages applications for three federal economic immigration programs (though the specific programs are not named in the provided context)
+- Uses a competitive ranking system to select candidates
+
+2. Assessment Method:
+- Candidates are evaluated using the Comprehensive Ranking System (CRS)
+- The CRS awards points based on several factors including:
+  - Age
+  - Education
+  - Language ability
+  - Work experience
+  - Canadian connections
+
+3. Basic Eligibility Requirements:
+- Language proficiency: Minimum Canadian Language Benchmark (CLB) 7 or higher
+- Education: Post-secondary education or equivalent
+- Work exp...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 902
+- Completion Tokens: 258
+- Source Documents: 6
+
+[0;34mSources:[0m
+      4 Express Entry Comparison
+      1 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 5: Family Sponsorship[0m
+[0;34m========================================[0m
+Query: [0;32mWhat are the financial requirements for sponsoring parents and grandparents?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the context provided, here are the key financial requirements for sponsoring parents and grandparents:
+
+1. Sponsors must demonstrate financial capacity to support sponsored family members and prevent them from requiring social assistance.
+
+2. The minimum income requirement is calculated using the Low Income Cut-Off (LICO) plus 30%, and these thresholds are established annually based on family size.
+
+3. Sponsors must commit to a 20-year undertaking period for parents and grandparents, during which they are financially responsible for:
+- Basic needs
+- Food
+- Shelter
+- Clothing
+- Healthcare not covered by public health insurance
+
+Additionally, the Parents and Grandparents Program operates through an annual intake system with specific sponsorship requirements designed to ensure adequa...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 828
+- Completion Tokens: 198
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 6: Refugee Programs[0m
+[0;34m========================================[0m
+Query: [0;32mWhat is the difference between Government-Assisted Refugees and Privately Sponsored Refugees?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the context, here are the key differences between Government-Assisted Refugees (GARs) and Privately Sponsored Refugees:
+
+Government-Assisted Refugees (GARs):
+1. Selected and supported primarily by the government
+2. Identified by UNHCR or other referral organizations
+3. Receive government income support for up to 12 months
+4. Support levels match provincial social assistance rates
+5. Selection priorities focus on those with acute protection needs (women at risk, torture survivors, urgent medical cases)
+6. Placement decisions are made by the government based on available services and community capacity
+
+Privately Sponsored Refugees:
+1. Sponsored by Canadian citizens or permanent residents
+2. Sponsors must demonstrate financial capacity and settlement support capabilities
+3. Support ...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 890
+- Completion Tokens: 300
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 7: Three Pillars[0m
+[0;34m========================================[0m
+Query: [0;32mWhat are the three main pillars of Canadian immigration policy and what percentage of immigrants does each category represent?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the provided context, Canada's immigration policy is anchored in three fundamental pillars:
+
+1. Economic prosperity
+2. Family reunification
+3. Humanitarian protection
+
+From the context, we can only see that economic class immigrants comprise approximately 60% of total admissions (according to current immigration levels plan targeting 485,000 new permanent residents by 2024[1]). The exact percentage breakdowns for family reunification and humanitarian protection categories are not explicitly stated in the provided context.
+
+The emphasis on economic immigration (60%) represents a "
+nomic class immigrants comprising approximately 60% of total admissions. This represents a strategic emphasis on addressing labor shortages and supporting economic growth across all regions of Canada. ===...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 813
+- Completion Tokens: 166
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 8: Citizenship Process[0m
+[0;34m========================================[0m
+Query: [0;32mWalk me through the steps to become a Canadian citizen from permanent residence.[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the context provided, here are the steps to become a Canadian citizen as a permanent resident:
+
+1. Meet Physical Presence Requirements:
+- You must have been physically present in Canada for at least 1,095 days (3 years) within the 5 years immediately before applying
+- Time spent in Canada as a temporary resident before becoming a permanent resident counts as half-days (up to a maximum credit of 365 days)
+
+2. Meet Language Requirements (if aged 18-54):
+- Demonstrate proficiency in English or French
+- This can be proven through either:
+  - Completion of secondary or post-secondary education in English or French, OR
+  - Achieving Canadian Language Benchmark (CLB) 4 in speaking and listening
+
+3. Pass the Citizenship Test (if aged 18-64):
+- Study the provided materials about:
+  - Canad...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 976
+- Completion Tokens: 305
+- Source Documents: 6
+
+[0;34mSources:[0m
+      1 Immigration Policy Test
+      2 Immigration_Policy.txt
+      2 Untitled
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 9: Regional Programs[0m
+[0;34m========================================[0m
+Query: [0;32mWhat regional immigration programs are mentioned in the policy?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+According to the context, there are several regional immigration initiatives mentioned that specifically target areas outside major metropolitan centers. These include:
+
+1. The Atlantic Immigration Program
+2. Rural and Northern Immigration Pilot[1]
+3. Municipal Nominee Program
+
+These programs are designed to address specific demographic and economic challenges in smaller communities with particular labor market needs.
+
+Additionally, there are Francophone immigration strategies that, while not strictly a regional program, support French-speaking communities outside Quebec through:
+- Enhanced recruitment
+- Selection support
+- Integration supports
+
+These regional initiatives are part of a broader strategy to distribute immigration benefits across different parts of Canada and address specific...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 805
+- Completion Tokens: 140
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;34m========================================[0m
+[1;33mTEST 10: Business Immigration[0m
+[0;34m========================================[0m
+Query: [0;32mWhat business and investor immigration programs are available?[0m
+
+[0;34mMaking API call...[0m
+[0;32m✓ SUCCESS[0m
+
+[0;34mResponse:[0m
+Based on the context, there are several business and investor immigration programs available:
+
+1. Start-up Visa Program
+- Connects immigrant entrepreneurs with designated Canadian investor groups
+- Focuses on establishing innovative businesses
+
+2. Self-employed Persons Program
+- For individuals with relevant experience who intend to create their own employment
+- Specifically targets three areas:
+  - Cultural activities
+  - Athletics
+  - Farm management
+
+3. Provincial Nominee Program (PNP) Business Streams
+- While not exclusively business programs, PNPs include entrepreneur and investor streams
+- These vary by province/territory
+
+The selection criteria for these programs generally emphasize:
+- Business experience
+- Management capabilities
+- Potential economic contribution
+
+The overall goal ...
+
+
+[0;34mMetrics:[0m
+- Prompt Tokens: 792
+- Completion Tokens: 177
+- Source Documents: 6
+
+[0;34mSources:[0m
+      5 Immigration_Policy.txt
+
+[0;34m========================================[0m
+
+[0;32m========================================[0m
+[0;32mALL TESTS COMPLETED[0m
+[0;32m========================================[0m
+[0;34mYour RAG system is working excellently![0m
+[0;34mThe manual test showed perfect retrieval and response quality.[0m

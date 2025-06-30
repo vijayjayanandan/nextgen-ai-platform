@@ -77,7 +77,7 @@ class BulkEmbeddingResponse(BaseModel):
 # Vector search schemas
 class VectorSearchQuery(BaseModel):
     """Schema for vector search queries."""
-    query: str
+    query: List[float]  # Vector embedding for search
     filters: Optional[Dict[str, Any]] = None
     top_k: int = 5
     include_metadata: bool = True

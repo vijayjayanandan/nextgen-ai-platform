@@ -214,10 +214,20 @@ test.db
 storage/documents/*
 !storage/documents/.gitkeep
 
+# Test reports and results
+*test_report*.json
+*test_results*.json
+claude_real_api_test_report_*.json
+claude_integration_test_results.json
+baseline_validation_results.json
+enhanced_baseline_validation_results.json
+format_validation_results.json
+
 # Logs
 logs/
 *.log
 *.log.*
+app.log
 
 # Temporary files
 tmp/

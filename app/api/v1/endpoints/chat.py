@@ -130,8 +130,8 @@ async def stream_chat_completion(
             if source_chunks:
                 # Build context from retrieved chunks
                 context_text = "\n\n".join([
-                    f"Document: {chunk.get('metadata', {}).get('document_title', 'Untitled')}\n"
-                    f"Content: {chunk.get('content', '')}"
+                    f"Document: {chunk.metadata.get('document_title', 'Untitled') if chunk.metadata else 'Untitled'}\n"
+                    f"Content: {chunk.content}"
                     for chunk in source_chunks
                 ])
                 

@@ -1,0 +1,256 @@
+================================================================================
+🚀 FastAPI + Next.js AI Platform - Quick Reference
+================================================================================
+
+📊 SYSTEM OVERVIEW
+================================================================================
+Enterprise AI Platform for Canadian Organizations
+- Two-Tier PII Detection (0-5ms + comprehensive)
+- RAG Pipeline with Vector Databases
+- PIPEDA Compliance Built-in
+- 47 Services | 12 API Endpoints | 6 Database Models
+
+🏗️ ARCHITECTURE LAYERS
+================================================================================
+
+Layer 1: Executive Overview
+┌─────────┐    ┌──────────┐    ┌─────────┐    ┌──────────┐    ┌──────────┐
+│  Users  │───▶│ Frontend │───▶│   API   │───▶│ AI Svcs  │───▶│   Data   │
+│   👥    │    │   🖥️     │    │   🚀    │    │    🧠    │    │   🗄️    │
+└─────────┘    └──────────┘    └─────────┘    └──────────┘    └──────────┘
+                                                     │
+                                                     ▼
+                                              ┌──────────┐
+                                              │ External │
+                                              │    🌐    │
+                                              └──────────┘
+
+Layer 2: Service Architecture
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Frontend Svcs  │    │  Backend Svcs   │    │  AI Processing  │
+│                 │    │                 │    │                 │
+│ • Next.js App   │───▶│ • FastAPI       │───▶│ • Orchestrator  │
+│ • Components    │    │ • API Router    │    │ • FastPII       │
+│ • API Client    │    │ • Middleware    │    │ • BackgroundPII │
+└─────────────────┘    └─────────────────┘    │ • RAG Service   │
+                                              │ • Model Router  │
+                                              └─────────────────┘
+                                                       │
+                                                       ▼
+                                              ┌─────────────────┐
+                                              │  Data Services  │
+                                              │                 │
+                                              │ • PostgreSQL    │
+                                              │ • Vector DB     │
+                                              │ • Redis Cache   │
+                                              └─────────────────┘
+
+🔒 PII DETECTION - TWO-TIER ARCHITECTURE
+================================================================================
+
+User Input
+    │
+    ▼
+┌─────────────────┐
+│ FastPIIScreener │ ◄─── Tier 1: 0-5ms Critical Blocking
+│   (Tier 1)      │
+└─────────────────┘
+    │           │
+    ▼           ▼
+Critical?   Background
+    │       Processor
+    ▼       (Tier 2)
+┌─────────┐      │
+│ BLOCK   │      ▼
+│ Request │  ┌─────────────┐
+└─────────┘  │ ML Analysis │
+             │ Compliance  │
+             │ Audit Log   │
+             └─────────────┘
+
+Tier 1 Features:
+• Pattern Matching (SIN, UCI, IRCC)
+• Circuit Breaker Protection
+• Redis Cache Optimization
+• Real-time Tokenization
+
+Tier 2 Features:
+• Advanced ML Detection
+• PIPEDA Compliance
+• Complete Audit Trail
+• Async Queue Management
+
+🧠 RAG PIPELINE
+================================================================================
+
+Document Upload ──▶ Text Chunking ──▶ Generate Embeddings ──▶ Vector Storage
+                                                                      │
+User Query ──▶ Query Embedding ──▶ Semantic Search ◄─────────────────┘
+                                         │
+                                         ▼
+                                  Retrieve Top-K ──▶ Build Context ──▶ LLM
+                                                                        │
+                                                                        ▼
+                                  Final Response ◄── Add Citations ◄───┘
+
+Components:
+• Document Processing: PDF, DOCX, TXT, HTML
+• Embedding Service: OpenAI text-embedding-ada-002
+• Vector Database: Pinecone (managed) / Weaviate (open-source)
+• Attribution Service: Automatic citations & source tracking
+
+🗄️ DATABASE SCHEMA
+================================================================================
+
+Document ──┬── DocumentChunk ──── Embedding
+           │
+           └── (metadata, security, versioning)
+
+User ──── Conversation ──── Message
+     │
+     └── (auth, roles, permissions)
+
+Implementation Status:
+✅ Document, DocumentChunk, Embedding
+❌ User, Conversation, Message (Missing)
+
+🌐 API ENDPOINTS
+================================================================================
+
+/api/v1/
+├── auth/           🔐 Authentication (login, refresh, logout)
+├── chat/           💬 Chat completions, history
+├── completions/    🤖 Text generation, streaming
+├── documents/      📄 Upload, list, delete
+├── retrieval/      🔍 Semantic search, similarity
+├── moderation/     🛡️ PII screening, analysis
+├── models/         🧠 Model info, capabilities
+├── users/          👤 User management
+└── monitoring/     📊 PII stats, performance
+
+⚙️ CORE SERVICES
+================================================================================
+
+PII Services:
+• FastPIIScreener      - Immediate blocking (0-5ms)
+• BackgroundProcessor  - Comprehensive analysis
+• EnterpriseFilter     - ML-based detection
+
+RAG Services:
+• VectorDBService      - Pinecone/Weaviate integration
+• EmbeddingService     - OpenAI embeddings
+• AttributionService   - Citation generation
+• DocumentProcessor    - Text chunking
+
+LLM Services:
+• OpenAIService        - GPT models
+• AnthropicService     - Claude models
+• OnPremService        - Local models
+• ModelRouter          - Request routing
+
+Data Services:
+• SessionManager       - Database connections
+• Repositories         - Data access layer
+• Models              - SQLAlchemy entities
+• Schemas             - Pydantic validation
+
+🔧 MAINTENANCE QUICK GUIDES
+================================================================================
+
+Adding PII Patterns:
+1. Identify pattern type (Canadian vs Generic)
+2. Add to fast_pii_screener.py or enhanced_content_filter.py
+3. Create validation function
+4. Add unit tests
+5. Deploy to staging
+6. Monitor detection rates
+
+Scaling Vector DB:
+1. Check current load (GET /monitoring/performance)
+2. Scale Pinecone pods OR Weaviate cluster
+3. Update VECTOR_DB_URI in config.py
+4. Test connection
+5. Monitor performance
+
+Debugging PII False Positives:
+1. Check audit logs (GET /monitoring/pii/stats)
+2. Identify triggering pattern
+3. Update FastPIIScreener OR EnterpriseContentFilter
+4. Test pattern changes
+5. Deploy fix
+6. Validate with original case
+
+🎓 DEVELOPER ONBOARDING PATHS
+================================================================================
+
+Backend Developer (4 weeks):
+Week 1: Foundation (main.py, config.py, router.py)
+Week 2: PII Deep Dive (pii/, hybrid_orchestrator.py)
+Week 3: RAG Pipeline (retrieval/, embeddings/)
+Week 4: Integration (tests/, docs/, optimization)
+
+Frontend Developer (4 weeks):
+Week 1: Next.js Foundation (app/, components/layout/, lib/api/)
+Week 2: Component Architecture (chat/, documents/, context/)
+Week 3: AI Integration (hooks/, utils/, error handling)
+Week 4: Advanced Features (tests, accessibility, performance)
+
+DevOps/Platform (4 weeks):
+Week 1: Infrastructure (Docker, DB, environment, security)
+Week 2: Deployment (CI/CD, monitoring, logging)
+Week 3: Scaling (load balancing, DB scaling, caching)
+Week 4: Operations (incident response, backup, automation)
+
+📚 KEY FILES REFERENCE
+================================================================================
+
+Configuration:
+• app/core/config.py           - Main configuration & feature flags
+• .env.example                 - Environment variables template
+• docker-compose.yml           - Container orchestration
+• requirements.txt             - Python dependencies
+
+Core Services:
+• app/services/hybrid_orchestrator.py     - Main orchestration logic
+• app/services/pii/fast_pii_screener.py   - Fast PII detection (Tier 1)
+• app/services/pii/background_processor.py - Comprehensive PII (Tier 2)
+• app/services/retrieval/vector_db_service.py - Vector operations
+• app/services/embeddings/embedding_service.py - Embedding generation
+
+Database:
+• app/db/session.py            - Database session management
+• app/db/base.py               - Base model classes
+• app/models/document.py       - Document & chunk models
+• app/models/embedding.py      - Embedding models
+
+API:
+• app/main.py                  - FastAPI application entry point
+• app/api/v1/router.py         - Main API router
+• app/api/v1/endpoints/        - Individual endpoint implementations
+
+Testing:
+• tests/test_enhanced_pii_filtering.py     - PII detection tests
+• tests/test_pii_middleware_integration.py - Integration tests
+
+📞 SUPPORT & DOCUMENTATION
+================================================================================
+
+Interactive Documentation:
+• architecture-documentation.html - Full interactive experience
+• README-architecture.md          - GitHub-friendly documentation
+
+Additional Resources:
+• docs/ directory                 - Detailed service documentation
+• Code comments & docstrings      - Implementation details
+• Unit tests                      - Usage examples
+• OpenAPI docs                    - API documentation (/docs endpoint)
+
+Performance Monitoring:
+• GET /monitoring/performance     - System performance metrics
+• GET /monitoring/pii/stats       - PII detection statistics
+• Logs                           - Structured logging with audit trail
+
+================================================================================
+🔗 For interactive diagrams and detailed exploration:
+   Open architecture-documentation.html in your browser
+================================================================================

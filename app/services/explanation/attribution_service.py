@@ -87,8 +87,8 @@ class AttributionService:
         
         # Process each source chunk
         for i, chunk in enumerate(source_chunks):
-            chunk_content = chunk.get("content", "")
-            document_id = chunk.get("document_id")
+            chunk_content = chunk.content
+            document_id = str(chunk.document_id)
             
             if not chunk_content or not document_id:
                 continue
@@ -107,12 +107,12 @@ class AttributionService:
                     
                     attributions.append({
                         "text": phrase,
-                        "chunk_id": chunk.get("id", f"chunk_{i}"),
+                        "chunk_id": str(chunk.chunk_id),
                         "document_id": document_id,
                         "document_title": doc_info.get("title", "Unknown Document"),
                         "source_type": doc_info.get("source_type", "unknown"),
-                        "page_number": chunk.get("page_number"),
-                        "section_title": chunk.get("section_title")
+                        "page_number": chunk.metadata.get("page_number") if chunk.metadata else None,
+                        "section_title": chunk.metadata.get("section_title") if chunk.metadata else None
                     })
         
         # De-duplicate attributions

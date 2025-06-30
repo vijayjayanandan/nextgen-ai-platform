@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI + Next.js AI Platform - Interactive Architecture Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+
+        .nav-tab.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .content-section {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .layer-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .layer-btn {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .layer-btn:hover {
+            background: #5a6268;
+        }
+
+        .layer-btn.active {
+            background: #28a745;
+        }
+
+        .diagram-container {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            min-height: 200px;
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .component-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .component-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .component-card.pii {
+            border-left: 4px solid #dc3545;
+        }
+
+        .component-card.rag {
+            border-left: 4px solid #007bff;
+        }
+
+        .component-card.auth {
+            border-left: 4px solid #28a745;
+        }
+
+        .component-card.database {
+            border-left: 4px solid #6f42c1;
+        }
+
+        .component-card.api {
+            border-left: 4px solid #fd7e14;
+        }
+
+        .component-card.config {
+            border-left: 4px solid #6c757d;
+        }
+
+        .component-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .component-description {
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .component-details {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .component-details.expanded {
+            display: block;
+        }
+
+        .file-list {
+            list-style: none;
+            margin: 10px 0;
+        }
+
+        .file-list li {
+            padding: 5px 0;
+            color: #007bff;
+            cursor: pointer;
+        }
+
+        .file-list li:hover {
+            text-decoration: underline;
+        }
+
+        .search-container {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #007bff;
+        }
+
+        .breadcrumb {
+            background: #e9ecef;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-implemented {
+            background-color: #28a745;
+        }
+
+        .status-missing {
+            background-color: #dc3545;
+        }
+
+        .status-partial {
+            background-color: #ffc107;
+        }
+
+        .mermaid {
+            text-align: center;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .nav-tabs {
+                flex-direction: column;
+            }
+
+            .nav-tab {
+                margin-right: 0;
+                margin-bottom: 5px;
+            }
+
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>&#x1F680; FastAPI + Next.js AI Platform</h1>
+            <p>Interactive Architecture Documentation - Enterprise-Grade AI Platform for Canadian Organizations</p>
+            <p><strong>Features:</strong> Two-Tier PII Detection &#x2022; RAG Pipeline &#x2022; PIPEDA Compliance &#x2022; Vector Databases</p>
+        </div>
+
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="&#x1F50D; Search components, services, files..." id="searchInput">
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showSection('overview')">&#x1F4CA; System Overview</button>
+            <button class="nav-tab" onclick="showSection('architecture')">&#x1F3D7;&#xFE0F; Architecture Layers</button>
+            <button class="nav-tab" onclick="showSection('services')">&#x2699;&#xFE0F; Services</button>
+            <button class="nav-tab" onclick="showSection('pii')">&#x1F512; PII Detection</button>
+            <button class="nav-tab" onclick="showSection('rag')">&#x1F9E0; RAG Pipeline</button>
+            <button class="nav-tab" onclick="showSection('database')">&#x1F5C4;&#xFE0F; Database</button>
+            <button class="nav-tab" onclick="showSection('api')">&#x1F310; API Endpoints</button>
+            <button class="nav-tab" onclick="showSection('maintenance')">&#x1F527; Maintenance</button>
+            <button class="nav-tab" onclick="showSection('onboarding')">&#x1F393; Onboarding</button>
+        </div>
+
+        <!-- System Overview Section -->
+        <div id="overview" class="content-section active">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > System Overview
+            </div>
+            
+            <h2>&#x1F3AF; System Overview</h2>
+            <p>Enterprise-grade AI platform featuring advanced PII detection, RAG capabilities, and PIPEDA compliance for Canadian organizations.</p>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">47</div>
+                    <div class="metric-label">Total Services</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">12</div>
+                    <div class="metric-label">API Endpoints</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">6</div>
+                    <div class="metric-label">Database Models</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">2</div>
+                    <div class="metric-label">PII Tiers</div>
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="overview-diagram">
+graph TB
+    subgraph "Frontend Layer"
+        NextJS["Next.js Frontend<br/>React Components"]
+        UI["UI Components<br/>Chat, Documents, Settings"]
+    end
+    
+    subgraph "API Gateway"
+        FastAPI["FastAPI Backend<br/>Python 3.11+"]
+        Router["API Router<br/>v1 Endpoints"]
+    end
+    
+    subgraph "AI Services Layer"
+        Orchestrator["HybridOrchestrator<br/>Two-Tier PII Architecture"]
+        PII1["FastPIIScreener<br/>Tier 1: 0-5ms"]
+        PII2["BackgroundProcessor<br/>Tier 2: Comprehensive"]
+        RAG["RAG Pipeline<br/>Vector Search + Attribution"]
+    end
+    
+    subgraph "Data Layer"
+        PostgreSQL[("PostgreSQL<br/>Primary Database")]
+        VectorDB[("Vector Database<br/>Pinecone/Weaviate")]
+        Redis[("Redis<br/>Caching")]
+    end
+    
+    subgraph "External Services"
+        OpenAI["OpenAI API<br/>GPT Models"]
+        OnPrem["On-Premises<br/>Local Models"]
+    end
+    
+    NextJS --> FastAPI
+    FastAPI --> Router
+    Router --> Orchestrator
+    Orchestrator --> PII1
+    Orchestrator --> PII2
+    Orchestrator --> RAG
+    RAG --> VectorDB
+    Orchestrator --> PostgreSQL
+    PII1 --> Redis
+    Orchestrator --> OpenAI
+    Orchestrator --> OnPrem
+    
+    classDef frontend fill:#e1f5fe
+    classDef api fill:#fff3e0
+    classDef ai fill:#f3e5f5
+    classDef data fill:#e8f5e8
+    classDef external fill:#fce4ec
+    
+    class NextJS,UI frontend
+    class FastAPI,Router api
+    class Orchestrator,PII1,PII2,RAG ai
+    class PostgreSQL,VectorDB,Redis data
+    class OpenAI,OnPrem external
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture Layers Section -->
+        <div id="architecture" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > Architecture Layers
+            </div>
+            
+            <h2>&#x1F3D7;&#xFE0F; Architecture Layers</h2>
+            <p>Progressive detail views from executive overview to implementation specifics.</p>
+
+            <div class="layer-selector">
+                <button class="layer-btn active" onclick="showLayer('layer1')">Layer 1: Executive</button>
+                <button class="layer-btn" onclick="showLayer('layer2')">Layer 2: Services</button>
+                <button class="layer-btn" onclick="showLayer('layer3')">Layer 3: Modules</button>
+                <button class="layer-btn" onclick="showLayer('layer4')">Layer 4: Functions</button>
+            </div>
+
+            <div id="layer1" class="diagram-container">
+                <h3>Layer 1: Executive Overview</h3>
+                <div class="mermaid" id="layer1-diagram">
+graph LR
+    Users["&#x1F465; Users"] --> Frontend["&#x1F4BB; Next.js Frontend"]
+    Frontend --> API["&#x1F680; FastAPI Backend"]
+    API --> AI["&#x1F9E0; AI Services"]
+    AI --> Data["&#x1F5C4;&#xFE0F; Data Layer"]
+    AI --> External["&#x1F310; External APIs"]
+    
+    classDef users fill:#e8f5e8
+    classDef frontend fill:#e1f5fe
+    classDef api fill:#fff3e0
+    classDef ai fill:#f3e5f5
+    classDef data fill:#e8f5e8
+    classDef external fill:#fce4ec
+    
+    class Users users
+    class Frontend frontend
+    class API api
+    class AI ai
+    class Data data
+    class External external
+                </div>
+            </div>
+
+            <div id="layer2" class="diagram-container" style="display:none;">
+                <h3>Layer 2: Service Architecture</h3>
+                <div class="mermaid" id="layer2-diagram">
+graph TB
+    subgraph "Frontend Services"
+        NextJS["Next.js App"]
+        Components["React Components"]
+        APIClient["API Client"]
+    end
+    
+    subgraph "Backend Services"
+        FastAPI["FastAPI Server"]
+        Router["API Router"]
+        Middleware["Security Middleware"]
+    end
+    
+    subgraph "AI Processing"
+        Orchestrator["HybridOrchestrator"]
+        FastPII["FastPIIScreener"]
+        BackgroundPII["BackgroundProcessor"]
+        RAGService["RAG Service"]
+        ModelRouter["Model Router"]
+    end
+    
+    subgraph "Data Services"
+        PostgreSQL[("PostgreSQL")]
+        VectorDB[("Vector DB")]
+        Redis[("Redis Cache")]
+    end
+    
+    NextJS --> FastAPI
+    FastAPI --> Router
+    Router --> Orchestrator
+    Orchestrator --> FastPII
+    Orchestrator --> BackgroundPII
+    Orchestrator --> RAGService
+    Orchestrator --> ModelRouter
+    RAGService --> VectorDB
+    FastPII --> Redis
+    Orchestrator --> PostgreSQL
+                </div>
+            </div>
+
+            <div id="layer3" class="diagram-container" style="display:none;">
+                <h3>Layer 3: Module Implementation</h3>
+                <div class="mermaid" id="layer3-diagram">
+graph TB
+    subgraph "PII Detection Modules"
+        FastScreener["FastPIIScreener<br/>- pattern_matching<br/>- circuit_breaker<br/>- cache_manager"]
+        BackgroundProc["BackgroundProcessor<br/>- ml_analysis<br/>- audit_logger<br/>- queue_manager"]
+        ContentFilter["EnterpriseContentFilter<br/>- comprehensive_scan<br/>- compliance_check"]
+    end
+    
+    subgraph "RAG Modules"
+        VectorService["VectorDBService<br/>- pinecone_client<br/>- weaviate_client<br/>- search_engine"]
+        EmbeddingService["EmbeddingService<br/>- openai_embeddings<br/>- semantic_search<br/>- batch_processing"]
+        Attribution["AttributionService<br/>- citation_generator<br/>- source_tracker"]
+    end
+    
+    subgraph "Core Modules"
+        Config["Configuration<br/>- settings_manager<br/>- feature_flags<br/>- env_validation"]
+        Security["Security<br/>- jwt_handler<br/>- rbac_manager<br/>- encryption"]
+        Database["Database<br/>- session_manager<br/>- model_registry<br/>- migration_handler"]
+    end
+                </div>
+            </div>
+
+            <div id="layer4" class="diagram-container" style="display:none;">
+                <h3>Layer 4: Function-Level Flow</h3>
+                <div class="mermaid" id="layer4-diagram">
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API
+    participant Orchestrator
+    participant FastPII
+    participant BackgroundPII
+    participant RAG
+    participant LLM
+    
+    User->>Frontend: Submit message
+    Frontend->>API: POST /chat/completions
+    API->>Orchestrator: process_chat_completion()
+    Orchestrator->>FastPII: safe_quick_pii_check()
+    FastPII-->>Orchestrator: FastPIIResult
+    
+    alt PII Detected
+        Orchestrator-->>API: Block with error
+        API-->>Frontend: Content filtered
+    else PII Clear
+        Orchestrator->>BackgroundPII: submit_for_analysis()
+        Orchestrator->>RAG: semantic_search()
+        RAG-->>Orchestrator: source_chunks
+        Orchestrator->>LLM: generate_completion()
+        LLM-->>Orchestrator: completion
+        Orchestrator-->>API: ChatCompletionResponse
+        API-->>Frontend: Response with citations
+    end
+                </div>
+            </div>
+        </div>
+
+        <!-- PII Detection Section -->
+        <div id="pii" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > PII Detection
+            </div>
+            
+            <h2>&#x1F512; Two-Tier PII Detection Architecture</h2>
+            <p>Enterprise-grade PII filtering with optimal performance and comprehensive security.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="pii-diagram">
+flowchart TD
+    Input["User Input"] --> FastScreener["FastPIIScreener<br/>Tier 1: 0-5ms"]
+    
+    FastScreener --> Critical{"Critical PII<br/>Detected?"}
+    
+    Critical -->|Yes| Block["&#x1F6AB; Block Request<br/>Return Error"]
+    Critical -->|No| Process["&#x2705; Continue Processing"]
+    
+    FastScreener --> Background["BackgroundProcessor<br/>Tier 2: Comprehensive"]
+    
+    Background --> MLAnalysis["ML-Based Analysis"]
+    Background --> ComplianceCheck["PIPEDA Compliance Check"]
+    Background --> AuditLog["Audit Logging"]
+    
+    Process --> LLM["Language Model Processing"]
+    
+    MLAnalysis --> Report["Generate Report"]
+    ComplianceCheck --> Report
+    AuditLog --> Report
+    
+    classDef input fill:#e1f5fe
+    classDef tier1 fill:#fff3e0
+    classDef tier2 fill:#f3e5f5
+    classDef decision fill:#fce4ec
+    classDef action fill:#e8f5e8
+    classDef block fill:#ffebee
+    
+    class Input input
+    class FastScreener tier1
+    class Background,MLAnalysis,ComplianceCheck,AuditLog tier2
+    class Critical decision
+    class Process,LLM action
+    class Block block
+                </div>
+            </div>
+        </div>
+
+        <!-- RAG Pipeline Section -->
+        <div id="rag" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > RAG Pipeline
+            </div>
+            
+            <h2>&#x1F9E0; RAG Pipeline Architecture</h2>
+            <p>Complete Retrieval Augmented Generation with vector databases and attribution.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="rag-diagram">
+flowchart TD
+    Document["&#x1F4C4; Document Upload"] --> Chunking["&#x1F4DD; Text Chunking"]
+    Chunking --> Embedding["&#x1F522; Generate Embeddings"]
+    Embedding --> VectorStore["&#x1F5C4;&#xFE0F; Vector Database Storage"]
+    
+    Query["&#x2753; User Query"] --> QueryEmbedding["&#x1F522; Query Embedding"]
+    QueryEmbedding --> Search["&#x1F50D; Semantic Search"]
+    VectorStore --> Search
+    
+    Search --> Retrieval["&#x1F4CB; Retrieve Top-K Chunks"]
+    Retrieval --> Context["&#x1F4D6; Build Context"]
+    Context --> LLM["&#x1F916; LLM Generation"]
+    
+    LLM --> Attribution["&#x1F4DA; Add Citations"]
+    Attribution --> Response["&#x2705; Final Response"]
+    
+    classDef document fill:#e1f5fe
+    classDef processing fill:#fff3e0
+    classDef storage fill:#f3e5f5
+    classDef query fill:#e8f5e8
+    classDef generation fill:#fce4ec
+    
+    class Document,Chunking document
+    class Embedding,QueryEmbedding processing
+    class VectorStore,Search storage
+    class Query,Retrieval,Context query
+    class LLM,Attribution,Response generation
+                </div>
+            </div>
+        </div>
+
+        <!-- API Endpoints Section -->
+        <div id="api" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > API Endpoints
+            </div>
+            
+            <h2>&#x1F310; API Endpoints</h2>
+            <p>RESTful API with FastAPI, automatic OpenAPI docs, and comprehensive endpoints.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="api-diagram">
+graph TD
+    API["FastAPI Application"] --> Router["API Router v1"]
+    
+    Router --> Auth["&#x1F510; /auth"]
+    Router --> Chat["&#x1F4AC; /chat"]
+    Router --> Completions["&#x1F916; /completions"]
+    Router --> Documents["&#x1F4C4; /documents"]
+    Router --> Retrieval["&#x1F50D; /retrieval"]
+    Router --> Moderation["&#x1F6E1;&#xFE0F; /moderation"]
+    Router --> Models["&#x1F9E0; /models"]
+    Router --> Users["&#x1F464; /users"]
+    Router --> Monitoring["&#x1F4CA; /monitoring"]
+    
+    Auth --> Login["POST /login"]
+    Auth --> Refresh["POST /refresh"]
+    Auth --> Logout["POST /logout"]
+    
+    Chat --> ChatCompletion["POST /completions"]
+    Chat --> ChatHistory["GET /history"]
+    
+    Completions --> TextCompletion["POST /"]
+    Completions --> StreamCompletion["POST /stream"]
+    
+    Documents --> Upload["POST /upload"]
+    Documents --> List["GET /"]
+    Documents --> Delete["DELETE /{id}"]
+    
+    Retrieval --> Search["POST /search"]
+    Retrieval --> Similarity["POST /similarity"]
+    
+    Moderation --> Screen["POST /screen"]
+    Moderation --> Analyze["POST /analyze"]
+    
+    Models --> ListModels["GET /"]
+    Models --> ModelInfo["GET /{model}"]
+    
+    Users --> CreateUser["POST /"]
+    Users --> GetUser["GET /{id}"]
+    Users --> UpdateUser["PUT /{id}"]
+    
+    Monitoring --> PIIStats["GET /pii/stats"]
+    Monitoring --> Performance["GET /performance"]
+                </div>
+            </div>
+        </div>
+
+        <!-- Services Section -->
+        <div id="services" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > Services
+            </div>
+            
+            <h2>&#x2699;&#xFE0F; Services Overview</h2>
+            <p>Detailed breakdown of all services in the platform.</p>
+
+            <div class="component-grid">
+                <div class="component-card pii">
+                    <div class="component-title">&#x1F512; PII Services</div>
+                    <div class="component-description">Two-tier PII detection architecture</div>
+                    <ul class="file-list">
+                        <li>FastPIIScreener - Immediate blocking (0-5ms)</li>
+                        <li>BackgroundProcessor - Comprehensive analysis</li>
+                        <li>EnterpriseContentFilter - ML-based detection</li>
+                    </ul>
+                </div>
+
+                <div class="component-card rag">
+                    <div class="component-title">&#x1F9E0; RAG Services</div>
+                    <div class="component-description">Retrieval Augmented Generation pipeline</div>
+                    <ul class="file-list">
+                        <li>VectorDBService - Pinecone/Weaviate integration</li>
+                        <li>EmbeddingService - OpenAI embeddings</li>
+                        <li>AttributionService - Citation generation</li>
+                        <li>DocumentProcessor - Text chunking</li>
+                    </ul>
+                </div>
+
+                <div class="component-card api">
+                    <div class="component-title">&#x1F310; LLM Services</div>
+                    <div class="component-description">Language model integrations</div>
+                    <ul class="file-list">
+                        <li>OpenAIService - GPT models</li>
+                        <li>AnthropicService - Claude models</li>
+                        <li>OnPremService - Local models</li>
+                        <li>ModelRouter - Request routing</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Section -->
+        <div id="database" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > Database
+            </div>
+            
+            <h2>&#x1F5C4;&#xFE0F; Database Architecture</h2>
+            <p>PostgreSQL with async SQLAlchemy and comprehensive data models.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="database-diagram">
+erDiagram
+    Document {
+        uuid id PK
+        string title
+        text description
+        enum source_type
+        string source_id
+        string content_type
+        string language
+        jsonb meta_data
+        enum status
+        boolean is_public
+        string security_classification
+        jsonb allowed_roles
+        string content_hash
+        string storage_path
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    DocumentChunk {
+        uuid id PK
+        uuid document_id FK
+        text content
+        integer chunk_index
+        jsonb meta_data
+        integer page_number
+        string section_title
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    Embedding {
+        uuid id PK
+        uuid chunk_id FK
+        string model_name
+        string model_version
+        integer dimensions
+        float_array vector
+        string vector_db_id
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    User {
+        uuid id PK
+        string email
+        string username
+        string hashed_password
+        jsonb roles
+        boolean is_active
+        timestamp last_login
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    Conversation {
+        uuid id PK
+        uuid user_id FK
+        string title
+        jsonb metadata
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    Message {
+        uuid id PK
+        uuid conversation_id FK
+        enum role
+        text content
+        jsonb metadata
+        timestamp created_at
+    }
+    
+    Document ||--o{ DocumentChunk : contains
+    DocumentChunk ||--o{ Embedding : has
+    User ||--o{ Conversation : creates
+    Conversation ||--o{ Message : contains
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Section -->
+        <div id="maintenance" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > Maintenance Guides
+            </div>
+            
+            <h2>&#x1F527; Maintenance Guides</h2>
+            <p>Visual step-by-step guides for common maintenance tasks.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="maintenance-diagram">
+flowchart TD
+    Start["New PII Pattern Request"] --> Identify["Identify Pattern Type"]
+    Identify --> Canadian{"Canadian Specific?"}
+    Canadian -->|Yes| AddPattern["Add to ircc_patterns dict<br/>fast_pii_screener.py"]
+    Canadian -->|No| AddGeneric["Add to generic patterns<br/>enhanced_content_filter.py"]
+    AddPattern --> Validator["Create validation function"]
+    Validator --> Test["Add unit tests<br/>test_enhanced_pii_filtering.py"]
+    Test --> Deploy["Deploy to staging"]
+    Deploy --> Monitor["Monitor detection rates"]
+    
+    style Start fill:#e1f5fe
+    style Deploy fill:#fff3e0
+    style Monitor fill:#f3e5f5
+                </div>
+            </div>
+        </div>
+
+        <!-- Onboarding Section -->
+        <div id="onboarding" class="content-section">
+            <div class="breadcrumb">
+                <a href="#overview">Home</a> > Onboarding Flows
+            </div>
+            
+            <h2>&#x1F393; Developer Onboarding</h2>
+            <p>Progressive learning paths for different developer roles.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid" id="onboarding-diagram">
+timeline
+    title Backend Developer Onboarding
+    
+    Week 1 : Read Architecture Docs
+           : Explore app/main.py
+           : Understand FastAPI Structure
+           : Set up Development Environment
+    
+    Week 2 : Study FastPIIScreener
+           : Understand BackgroundProcessor
+           : Review HybridOrchestrator
+           : Implement PII Pattern
+    
+    Week 3 : Explore VectorDBService
+           : Study EmbeddingService
+           : Review AttributionService
+           : Build RAG Feature
+    
+    Week 4 : Performance Optimization
+           : Testing Patterns
+           : First Major Contribution
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid with proper configuration
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            },
+            sequence: {
+                useMaxWidth: true,
+                htmlLabels: true
+            },
+            er: {
+                useMaxWidth: true
+            },
+            timeline: {
+                useMaxWidth: true
+            }
+        });
+
+        // Function to render a specific diagram
+        function renderDiagram(elementId) {
+            const element = document.getElementById(elementId);
+            if (element && !element.getAttribute('data-processed')) {
+                const diagramDef = element.textContent.trim();
+                element.innerHTML = '';
+                
+                try {
+                    mermaid.render(elementId + '-svg', diagramDef)
+                        .then(({svg}) => {
+                            element.innerHTML = svg;
+                            element.setAttribute('data-processed', 'true');
+                        })
+                        .catch(error => {
+                            console.error('Mermaid rendering error for', elementId, ':', error);
+                            element.innerHTML = '<div class="error-message">Error rendering diagram: ' + error.message + '</div>';
+                        });
+                } catch (error) {
+                    console.error('Mermaid syntax error for', elementId, ':', error);
+                    element.innerHTML = '<div class="error-message">Diagram syntax error</div>';
+                }
+            }
+        }
+
+        // Function to render all diagrams in a section
+        function renderSectionDiagrams(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                const mermaidElements = section.querySelectorAll('.mermaid');
+                mermaidElements.forEach(element => {
+                    if (element.id) {
+                        renderDiagram(element.id);
+                    }
+                });
+            }
+        }
+
+        // Navigation functions
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => section.classList.remove('active'));
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Update nav tabs
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Render diagrams for the new section
+            setTimeout(() => renderSectionDiagrams(sectionId), 100);
+        }
+
+        // Layer navigation for architecture section
+        function showLayer(layerId) {
+            // Hide all layer containers in architecture section
+            const layerContainers = ['layer1', 'layer2', 'layer3', 'layer4'];
+            layerContainers.forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.style.display = 'none';
+                }
+            });
+            
+            // Show selected layer
+            const selectedLayer = document.getElementById(layerId);
+            if (selectedLayer) {
+                selectedLayer.style.display = 'block';
+                
+                // Render diagram for this layer
+                const diagramId = layerId + '-diagram';
+                setTimeout(() => renderDiagram(diagramId), 100);
+            }
+            
+            // Update layer buttons
+            const buttons = document.querySelectorAll('.layer-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Toggle component details
+        function toggleDetails(card) {
+            const details = card.querySelector('.component-details');
+            if (details) {
+                details.classList.toggle('expanded');
+            }
+        }
+
+        // Show file details (placeholder function)
+        function showFileDetails(filePath) {
+            alert(`File Details: ${filePath}\n\nThis would show detailed information about the file, including:\n- Function definitions\n- Dependencies\n- Recent changes\n- Performance metrics`);
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.component-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('.component-title').textContent.toLowerCase();
+                const description = card.querySelector('.component-description').textContent.toLowerCase();
+                const fileList = card.querySelector('.file-list');
+                const files = fileList ? fileList.textContent.toLowerCase() : '';
+                
+                if (title.includes(searchTerm) || description.includes(searchTerm) || files.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Render overview diagram initially
+            setTimeout(() => renderDiagram('overview-diagram'), 500);
+            
+            // Add click handlers for component cards
+            const componentCards = document.querySelectorAll('.component-card');
+            componentCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    toggleDetails(this);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

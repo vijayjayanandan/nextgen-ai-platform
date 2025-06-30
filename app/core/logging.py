@@ -58,9 +58,12 @@ def configure_logging() -> logging.Logger:
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
     
-    # Configure handlers
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
+    # Configure handlers - both console and file
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    
+    file_handler = logging.FileHandler("app.log", mode='w')
+    file_handler.setFormatter(formatter)
     
     # Get the logger
     logger = logging.getLogger("ircc_ai_platform")
@@ -70,7 +73,8 @@ def configure_logging() -> logging.Logger:
     if logger.hasHandlers():
         logger.handlers.clear()
         
-    logger.addHandler(handler)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
     
     # Avoid propagation to the root logger
     logger.propagate = False
